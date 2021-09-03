@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "lib/cel/ruby/version"
+require_relative "lib/cel/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "cel-ruby"
@@ -26,8 +26,12 @@ Gem::Specification.new do |spec|
   end
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
+  spec.files = Dir["LICENSE.txt", "README.md", "CHANGELOG.md", "lib/**/*.rb", "sig/**/*.rbs"]
+  spec.extra_rdoc_files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md"]
+
   spec.require_paths = ["lib"]
 
+  spec.add_development_dependency "minitest"
   # spec.extensions = ["ext/cel/extconf.rb"]
 
   # For more information and examples about making a new gem, checkout our
