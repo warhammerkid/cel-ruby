@@ -13,7 +13,7 @@ rule
   expression: primary
 
 
-  # expr: primary
+  expr: primary
   # exp: exp '+' exp { result += val[2] }
   #    | exp '-' exp { result -= val[2] }
   #    | exp '*' exp { result *= val[2] }
@@ -22,28 +22,29 @@ rule
   #    | '-' NUMBER  =UMINUS { result = -val[1] }
   #    | NUMBER
 
-  primary: # '.' tIDENTIFIER invoke
-         #| '(' expr ')'
-          '[' maybe_expr_list ']' { result = Array(val[1]) }
-        #  | '{' maybe_map_inits '}' { result = Hash[val[1]] }
+  primary:  identifier
+         | '(' expr ')' { result = Array(val[1]) }
+         | '[' maybe_expr_list ']' { result = Array(val[1]) }
+         | '{' maybe_map_inits '}' { result = Hash[val[1]] }
          | literal
 
-  # invoke: '(' maybe_expr_list ')'
-  #       |
+  identifier: tIDENTIFIER
+            | tIDENTIFIER '{' maybe_map_inits '}' # object
+            | '.' tIDENTIFIER
+            | '.' tIDENTIFIER '{' maybe_map_inits '}'
 
   maybe_expr_list: expr_list
                  | { result = nil }
 
-  # maybe_map_inits: { result = nil }
-  #                | map_inits
+  maybe_map_inits: { result = nil }
+                 | map_inits
 
-  expr_list: expr_list ',' literal { result = Array(val[0]) << val[2] }
-             | literal { [val[0]] }
+  expr_list: expr_list ',' expr { result = Array(val[0]) << val[2] }
+             | expr { [val[0]] }
 
 
-  # map_inits: expr ':' expr field_inits
-  # field_inits: { result = nil }
-  #            | ',' expr ':' expr field_inits
+  map_inits: map_inits ',' expr ':' expr  { val[0][val[2].to_sym] = val[4]; result = val[0] }
+           | expr ':' expr { result = { val[0].to_sym => val[2] } }
 
   literal: tNUMBER
          | tBOOL

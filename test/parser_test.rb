@@ -21,10 +21,12 @@ class CelParserTest < Minitest::Test
 
   def test_expression_parsing
     parser = Cel::Parser.new
+    # assert_equal "a", parser.parse("a")
+    assert_equal [], parser.parse("[]")
     assert_equal [1], parser.parse("[1]")
     assert_equal [1, 2, 3], parser.parse("[1, 2, 3]")
     assert_equal [1, 2, 3, 4, 5.0], parser.parse("[1, 2, 3, 4, 5.0]")
-    # assert_equal {a: 1, b: 2, c: 3}, parser.parse("{a: 1, b: 2, c: 3}")
+    assert_equal({a: 1, b: 2, c: 3}, parser.parse("{a: 1, b: 2, c: 3}"))
   end
 
   private
