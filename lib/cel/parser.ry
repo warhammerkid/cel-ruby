@@ -1,21 +1,54 @@
 class Cel::Parser
-
+  token tNUMBER tBOOL tNULL tSTRING tRESERVED tIDENTIFIER tEOF
   prechigh
     nonassoc UMINUS
     left '*' '/'
     left '+' '-'
   preclow
 rule
-  target: exp
-        | /* none */ { result = 0 }
+  target: expression eof
+        | eof
+  eof: tEOF
 
-  exp: exp '+' exp { result += val[2] }
-     | exp '-' exp { result -= val[2] }
-     | exp '*' exp { result *= val[2] }
-     | exp '/' exp { result /= val[2] }
-     | '(' exp ')' { result = val[1] }
-     | '-' NUMBER  =UMINUS { result = -val[1] }
-     | NUMBER
+  expression: primary
+
+
+  # expr: primary
+  # exp: exp '+' exp { result += val[2] }
+  #    | exp '-' exp { result -= val[2] }
+  #    | exp '*' exp { result *= val[2] }
+  #    | exp '/' exp { result /= val[2] }
+  #    | '(' exp ')' { result = val[1] }
+  #    | '-' NUMBER  =UMINUS { result = -val[1] }
+  #    | NUMBER
+
+  primary: # '.' tIDENTIFIER invoke
+         #| '(' expr ')'
+          '[' maybe_expr_list ']' { result = Array(val[1]) }
+        #  | '{' maybe_map_inits '}' { result = Hash[val[1]] }
+         | literal
+
+  # invoke: '(' maybe_expr_list ')'
+  #       |
+
+  maybe_expr_list: expr_list
+                 | { result = nil }
+
+  # maybe_map_inits: { result = nil }
+  #                | map_inits
+
+  expr_list: | expr_list ',' literal { puts "res: #{result}"; result << val[0] }
+             | literal
+
+
+  # map_inits: expr ':' expr field_inits
+  # field_inits: { result = nil }
+  #            | ',' expr ':' expr field_inits
+
+  literal: tNUMBER
+         | tBOOL
+         | tNULL
+         | tSTRING
 end
 ---- header
 require 'strscan'
@@ -100,7 +133,7 @@ def tokenize(str)
       puts "fuckness"
     end
   end
-  @q << [false, '$end']
+  @q << [:tEOF, false]
 end
 
 def next_token

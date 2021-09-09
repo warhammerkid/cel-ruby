@@ -2,7 +2,6 @@
 
 require_relative "test_helper"
 class CelParserTest < Minitest::Test
-
   def test_token_parsing
     number_tokens.each do |input, expected|
       parser = Cel::Parser.new
@@ -16,6 +15,13 @@ class CelParserTest < Minitest::Test
       parser.tokenize(input)
       assert_equal [:tSTRING, expected], parser.next_token
     end
+  end
+
+  def test_expression_parsing
+    parser = Cel::Parser.new
+    assert parser.parse("[1]") == [1]
+    assert parser.parse("[1, 2, 3]") == [1, 2, 3]
+    assert parser.parse("{a: 1, b: 2, c: 3}") == {a: 1, b: 2, c: 3}
   end
 
   private

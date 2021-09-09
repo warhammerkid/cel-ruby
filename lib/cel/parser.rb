@@ -11,7 +11,7 @@ require 'bigdecimal'
 module Cel
   class Parser < Racc::Parser
 
-module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 24)
+module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 57)
 
 RESERVED = %W[
  in
@@ -91,7 +91,7 @@ def tokenize(str)
       puts "fuckness"
     end
   end
-  @q << [false, '$end']
+  @q << [:tEOF, false]
 end
 
 def next_token
@@ -183,68 +183,81 @@ end
 ##### State transition tables begin ###
 
 racc_action_table = [
-     9,    10,     7,     8,     6,    18,     4,     3,    12,     5,
-     9,    10,     7,     8,     4,     3,    13,     5,     4,     3,
-   nil,     5,     4,     3,   nil,     5,     4,     3,   nil,     5,
-     4,     3,   nil,     5,     9,    10,     9,    10 ]
+     8,     9,    10,    11,     8,     9,    10,    11,    12,     4,
+     4,    17,    18,    19,    -9,   nil,     6,     8,     9,    10,
+    11 ]
 
 racc_action_check = [
-    11,    11,    11,    11,     1,    11,     0,     0,     4,     0,
-     2,     2,     2,     2,     3,     3,     6,     3,     7,     7,
-   nil,     7,     8,     8,   nil,     8,     9,     9,   nil,     9,
-    10,    10,   nil,    10,    14,    14,    15,    15 ]
+     6,     6,     6,     6,     0,     0,     0,     0,     1,     2,
+     0,    12,    14,    15,     6,   nil,     0,    19,    19,    19,
+    19 ]
 
 racc_action_pointer = [
-     0,     4,     7,     8,    -1,   nil,    16,    12,    16,    20,
-    24,    -3,   nil,   nil,    31,    33,   nil,   nil,   nil ]
+     2,     8,     1,   nil,   nil,   nil,    -2,   nil,   nil,   nil,
+   nil,   nil,    11,   nil,    -3,    -3,   nil,   nil,   nil,    15,
+   nil ]
 
 racc_action_default = [
-    -2,   -10,    -1,   -10,   -10,    -9,   -10,   -10,   -10,   -10,
-   -10,   -10,    -8,    19,    -3,    -4,    -5,    -6,    -7 ]
+   -16,   -16,   -16,    -2,    -3,    -4,    -8,    -6,   -12,   -13,
+   -14,   -15,   -16,    -1,   -16,    -7,   -11,    21,    -5,   -16,
+   -10 ]
 
 racc_goto_table = [
-     2,     1,   nil,    11,   nil,   nil,   nil,    14,    15,    16,
-    17 ]
+     7,     3,     1,    13,     2,     5,    16,    14,    15,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,    20 ]
 
 racc_goto_check = [
-     2,     1,   nil,     2,   nil,   nil,   nil,     2,     2,     2,
-     2 ]
+     6,     3,     1,     3,     2,     4,     6,     5,     7,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,     6 ]
 
 racc_goto_pointer = [
-   nil,     1,     0 ]
+   nil,     2,     4,     1,     5,     1,     0,     2 ]
 
 racc_goto_default = [
-   nil,   nil,   nil ]
+   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil ]
 
 racc_reduce_table = [
   0, 0, :racc_error,
-  1, 11, :_reduce_none,
-  0, 11, :_reduce_2,
-  3, 12, :_reduce_3,
-  3, 12, :_reduce_4,
-  3, 12, :_reduce_5,
-  3, 12, :_reduce_6,
-  3, 12, :_reduce_7,
-  2, 12, :_reduce_8,
-  1, 12, :_reduce_none ]
+  2, 18, :_reduce_none,
+  1, 18, :_reduce_none,
+  1, 20, :_reduce_none,
+  1, 19, :_reduce_none,
+  3, 21, :_reduce_5,
+  1, 21, :_reduce_none,
+  1, 22, :_reduce_none,
+  0, 22, :_reduce_8,
+  0, 24, :_reduce_none,
+  3, 24, :_reduce_10,
+  1, 24, :_reduce_none,
+  1, 23, :_reduce_none,
+  1, 23, :_reduce_none,
+  1, 23, :_reduce_none,
+  1, 23, :_reduce_none ]
 
-racc_reduce_n = 10
+racc_reduce_n = 16
 
-racc_shift_n = 19
+racc_shift_n = 21
 
 racc_token_table = {
   false => 0,
   :error => 1,
-  :UMINUS => 2,
-  "*" => 3,
-  "/" => 4,
-  "+" => 5,
-  "-" => 6,
-  "(" => 7,
-  ")" => 8,
-  :NUMBER => 9 }
+  :tNUMBER => 2,
+  :tBOOL => 3,
+  :tNULL => 4,
+  :tSTRING => 5,
+  :tRESERVED => 6,
+  :tIDENTIFIER => 7,
+  :tEOF => 8,
+  :UMINUS => 9,
+  "*" => 10,
+  "/" => 11,
+  "+" => 12,
+  "-" => 13,
+  "[" => 14,
+  "]" => 15,
+  "," => 16 }
 
-racc_nt_base = 10
+racc_nt_base = 17
 
 racc_use_result_var = true
 
@@ -267,17 +280,29 @@ Racc_arg = [
 Racc_token_to_s_table = [
   "$end",
   "error",
+  "tNUMBER",
+  "tBOOL",
+  "tNULL",
+  "tSTRING",
+  "tRESERVED",
+  "tIDENTIFIER",
+  "tEOF",
   "UMINUS",
   "\"*\"",
   "\"/\"",
   "\"+\"",
   "\"-\"",
-  "\"(\"",
-  "\")\"",
-  "NUMBER",
+  "\"[\"",
+  "\"]\"",
+  "\",\"",
   "$start",
   "target",
-  "exp" ]
+  "expression",
+  "eof",
+  "primary",
+  "maybe_expr_list",
+  "literal",
+  "expr_list" ]
 
 Racc_debug_parser = false
 
@@ -287,56 +312,48 @@ Racc_debug_parser = false
 
 # reduce 1 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 9)
-  def _reduce_2(val, _values, result)
-     result = 0
-    result
-  end
-.,.,
+# reduce 2 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 11)
-  def _reduce_3(val, _values, result)
-     result += val[2]
-    result
-  end
-.,.,
+# reduce 3 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 12)
-  def _reduce_4(val, _values, result)
-     result -= val[2]
-    result
-  end
-.,.,
+# reduce 4 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 13)
+module_eval(<<'.,.,', 'parser.ry', 26)
   def _reduce_5(val, _values, result)
-     result *= val[2]
+     result = Array(val[1])
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'parser.ry', 14)
-  def _reduce_6(val, _values, result)
-     result /= val[2]
-    result
-  end
-.,.,
+# reduce 6 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 15)
-  def _reduce_7(val, _values, result)
-     result = val[1]
-    result
-  end
-.,.,
+# reduce 7 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 16)
+module_eval(<<'.,.,', 'parser.ry', 34)
   def _reduce_8(val, _values, result)
-     result = -val[1]
+     result = nil
     result
   end
 .,.,
 
 # reduce 9 omitted
+
+module_eval(<<'.,.,', 'parser.ry', 39)
+  def _reduce_10(val, _values, result)
+     puts "res: #{result}"; result << val[0]
+    result
+  end
+.,.,
+
+# reduce 11 omitted
+
+# reduce 12 omitted
+
+# reduce 13 omitted
+
+# reduce 14 omitted
+
+# reduce 15 omitted
 
 def _reduce_none(val, _values, result)
   val[0]
