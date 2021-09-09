@@ -37,8 +37,8 @@ rule
   # maybe_map_inits: { result = nil }
   #                | map_inits
 
-  expr_list: | expr_list ',' literal { puts "res: #{result}"; result << val[0] }
-             | literal
+  expr_list: expr_list ',' literal { result = Array(val[0]) << val[2] }
+             | literal { [val[0]] }
 
 
   # map_inits: expr ':' expr field_inits
@@ -142,14 +142,23 @@ end
 
 def convert_to_number(scanner)
   matched = scanner.matched
-  _, number, floating, exp = scanner.captures
+  hexa, uint, number, floating, exp = scanner.captures
+
+  if !hexa.empty?
+    return hexa.to_i(16)
+  end
+
+  if !uint.empty?
+    return Integer(uint)
+  end
+
   if !exp.empty?
     # third matched group, can only be a floating exponential, let's convert tout suite
     BigDecimal(matched)
   elsif !floating.empty?
     if number == floating || floating.start_with?(".")
       Float(matched)
-    else
+    elsif number.empty?
       BigDecimal(matched)
     end
   else
@@ -223,51 +232,51 @@ end
 
 ---- footer
 
-if $0 == __FILE__
-  examples = <<EOS
-123
-12345
-1.2
-1e2
--1.2e2
-12u
-0xa123
-""
-'""'
-'''x''x'''
-"\""
-"\\"
-r"\\"
-b"abc"
-b"ÿ"
-b"\303\277"
-"\303\277"
-"\377"
-b"\377"
-"\xFF"
-b"\xFF"
+# if $0 == __FILE__
+#   examples = <<EOS
+# 123
+# 12345
+# 1.2
+# 1e2
+# -1.2e2
+# 12u
+# 0xa123
+# ""
+# '""'
+# '''x''x'''
+# "\""
+# "\\"
+# r"\\"
+# b"abc"
+# b"ÿ"
+# b"\303\277"
+# "\303\277"
+# "\377"
+# b"\377"
+# "\xFF"
+# b"\xFF"
 
-1 + 2
-3 - 2
-" Some String with \"escapes\""
-'another string'
-a.b.c == 1
-d > 2
-a.b.c * 3 == 1 && d > 2
-a.b.c
-wiri
-// a.driving_license = "CA"
-// 1 = 2
-// 2 = "a"
-// a.b.c > "a"
-EOS
-  puts 'Parsing...'
-  parser = Cel::Parser.new
-  examples.each_line do |line|
-    puts "line: #{line.inspect}"
-    puts parser.parse(line)
-  end
-end
+# 1 + 2
+# 3 - 2
+# " Some String with \"escapes\""
+# 'another string'
+# a.b.c == 1
+# d > 2
+# a.b.c * 3 == 1 && d > 2
+# a.b.c
+# wiri
+# // a.driving_license = "CA"
+# // 1 = 2
+# // 2 = "a"
+# // a.b.c > "a"
+# EOS
+#   puts 'Parsing...'
+#   parser = Cel::Parser.new
+#   examples.each_line do |line|
+#     puts "line: #{line.inspect}"
+#     puts parser.parse(line)
+#   end
+# end
 
 # Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
 # ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;

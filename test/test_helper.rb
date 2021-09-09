@@ -2,7 +2,7 @@
 
 GC.auto_compact = true if GC.respond_to?(:auto_compact=)
 
-gem "minitest"
+require "minitest"
 require "minitest/autorun"
 
 if ENV.key?("PARALLEL")

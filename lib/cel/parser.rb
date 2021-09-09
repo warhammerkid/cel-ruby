@@ -100,14 +100,23 @@ end
 
 def convert_to_number(scanner)
   matched = scanner.matched
-  _, number, floating, exp = scanner.captures
+  hexa, uint, number, floating, exp = scanner.captures
+
+  if !hexa.empty?
+    return hexa.to_i(16)
+  end
+
+  if !uint.empty?
+    return Integer(uint)
+  end
+
   if !exp.empty?
     # third matched group, can only be a floating exponential, let's convert tout suite
     BigDecimal(matched)
   elsif !floating.empty?
     if number == floating || floating.start_with?(".")
       Float(matched)
-    else
+    elsif number.empty?
       BigDecimal(matched)
     end
   else
@@ -183,24 +192,22 @@ end
 ##### State transition tables begin ###
 
 racc_action_table = [
-     8,     9,    10,    11,     8,     9,    10,    11,    12,     4,
-     4,    17,    18,    19,    -9,   nil,     6,     8,     9,    10,
-    11 ]
+     8,     9,    10,    11,    12,     4,     4,     8,     9,    10,
+    11,    17,     6,     8,     9,    10,    11,    18,    19 ]
 
 racc_action_check = [
-     6,     6,     6,     6,     0,     0,     0,     0,     1,     2,
-     0,    12,    14,    15,     6,   nil,     0,    19,    19,    19,
-    19 ]
+     0,     0,     0,     0,     1,     2,     0,     6,     6,     6,
+     6,    12,     0,    19,    19,    19,    19,    14,    15 ]
 
 racc_action_pointer = [
-     2,     8,     1,   nil,   nil,   nil,    -2,   nil,   nil,   nil,
-   nil,   nil,    11,   nil,    -3,    -3,   nil,   nil,   nil,    15,
+    -2,     4,    -3,   nil,   nil,   nil,     5,   nil,   nil,   nil,
+   nil,   nil,    11,   nil,     2,     2,   nil,   nil,   nil,    11,
    nil ]
 
 racc_action_default = [
-   -16,   -16,   -16,    -2,    -3,    -4,    -8,    -6,   -12,   -13,
-   -14,   -15,   -16,    -1,   -16,    -7,   -11,    21,    -5,   -16,
-   -10 ]
+   -15,   -15,   -15,    -2,    -3,    -4,    -8,    -6,   -11,   -12,
+   -13,   -14,   -15,    -1,   -15,    -7,   -10,    21,    -5,   -15,
+    -9 ]
 
 racc_goto_table = [
      7,     3,     1,    13,     2,     5,    16,    14,    15,   nil,
@@ -226,15 +233,14 @@ racc_reduce_table = [
   1, 21, :_reduce_none,
   1, 22, :_reduce_none,
   0, 22, :_reduce_8,
-  0, 24, :_reduce_none,
-  3, 24, :_reduce_10,
-  1, 24, :_reduce_none,
+  3, 24, :_reduce_9,
+  1, 24, :_reduce_10,
   1, 23, :_reduce_none,
   1, 23, :_reduce_none,
   1, 23, :_reduce_none,
   1, 23, :_reduce_none ]
 
-racc_reduce_n = 16
+racc_reduce_n = 15
 
 racc_shift_n = 21
 
@@ -336,11 +342,16 @@ module_eval(<<'.,.,', 'parser.ry', 34)
   end
 .,.,
 
-# reduce 9 omitted
-
 module_eval(<<'.,.,', 'parser.ry', 39)
+  def _reduce_9(val, _values, result)
+     result = Array(val[0]) << val[2]
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 40)
   def _reduce_10(val, _values, result)
-     puts "res: #{result}"; result << val[0]
+     [val[0]]
     result
   end
 .,.,
@@ -353,8 +364,6 @@ module_eval(<<'.,.,', 'parser.ry', 39)
 
 # reduce 14 omitted
 
-# reduce 15 omitted
-
 def _reduce_none(val, _values, result)
   val[0]
 end
@@ -363,51 +372,51 @@ end
 end   # module Cel
 
 
-if $0 == __FILE__
-  examples = <<EOS
-123
-12345
-1.2
-1e2
--1.2e2
-12u
-0xa123
-""
-'""'
-'''x''x'''
-"\""
-"\\"
-r"\\"
-b"abc"
-b"ÿ"
-b"\303\277"
-"\303\277"
-"\377"
-b"\377"
-"\xFF"
-b"\xFF"
+# if $0 == __FILE__
+#   examples = <<EOS
+# 123
+# 12345
+# 1.2
+# 1e2
+# -1.2e2
+# 12u
+# 0xa123
+# ""
+# '""'
+# '''x''x'''
+# "\""
+# "\\"
+# r"\\"
+# b"abc"
+# b"ÿ"
+# b"\303\277"
+# "\303\277"
+# "\377"
+# b"\377"
+# "\xFF"
+# b"\xFF"
 
-1 + 2
-3 - 2
-" Some String with \"escapes\""
-'another string'
-a.b.c == 1
-d > 2
-a.b.c * 3 == 1 && d > 2
-a.b.c
-wiri
-// a.driving_license = "CA"
-// 1 = 2
-// 2 = "a"
-// a.b.c > "a"
-EOS
-  puts 'Parsing...'
-  parser = Cel::Parser.new
-  examples.each_line do |line|
-    puts "line: #{line.inspect}"
-    puts parser.parse(line)
-  end
-end
+# 1 + 2
+# 3 - 2
+# " Some String with \"escapes\""
+# 'another string'
+# a.b.c == 1
+# d > 2
+# a.b.c * 3 == 1 && d > 2
+# a.b.c
+# wiri
+# // a.driving_license = "CA"
+# // 1 = 2
+# // 2 = "a"
+# // a.b.c > "a"
+# EOS
+#   puts 'Parsing...'
+#   parser = Cel::Parser.new
+#   examples.each_line do |line|
+#     puts "line: #{line.inspect}"
+#     puts parser.parse(line)
+#   end
+# end
 
 # Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
 # ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;

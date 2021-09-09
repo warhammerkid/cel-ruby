@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require_relative "test_helper"
+
 class CelParserTest < Minitest::Test
   def test_token_parsing
     number_tokens.each do |input, expected|
       parser = Cel::Parser.new
       parser.tokenize(input)
-      assert_equal [:tNUMBER, expected], parser.next_token
+      next_token = parser.next_token
+      assert_equal [:tNUMBER, expected], next_token
     end
 
     string_tokens.each do |input, expected|
@@ -19,9 +21,10 @@ class CelParserTest < Minitest::Test
 
   def test_expression_parsing
     parser = Cel::Parser.new
-    assert parser.parse("[1]") == [1]
-    assert parser.parse("[1, 2, 3]") == [1, 2, 3]
-    assert parser.parse("{a: 1, b: 2, c: 3}") == {a: 1, b: 2, c: 3}
+    assert_equal [1], parser.parse("[1]")
+    assert_equal [1, 2, 3], parser.parse("[1, 2, 3]")
+    assert_equal [1, 2, 3, 4, 5.0], parser.parse("[1, 2, 3, 4, 5.0]")
+    # assert_equal {a: 1, b: 2, c: 3}, parser.parse("{a: 1, b: 2, c: 3}")
   end
 
   private
