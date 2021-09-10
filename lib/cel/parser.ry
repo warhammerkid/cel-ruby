@@ -1,37 +1,65 @@
 class Cel::Parser
-  token tNUMBER tBOOL tNULL tSTRING tRESERVED tIDENTIFIER tEOF
+  token tNUMBER tBOOL tNULL tSTRING tRESERVED tIDENTIFIER
+        tMULTIOP tADDOP tRELOP tANDOP tOROP tEOF
   prechigh
     nonassoc UMINUS
-    left '*' '/'
-    left '+' '-'
+    left tMULTIOP
+    left tADDOP
+    left tRELOP
+    left tANDOP
+    left tOROP
   preclow
 rule
-  target: expression eof
+  target: expr eof
         | eof
   eof: tEOF
 
-  expression: primary
+
+  expr: conditional_or "?" conditional_or ":" expr
+      | conditional_or
+
+  conditional_or: conditional_or tOROP conditional_and
+                | conditional_and
+
+  conditional_and: conditional_and tANDOP relation
+                 | relation
+
+  relation: relation tRELOP addition
+          | addition
+
+  addition: addition tADDOP multiplication
+          | multiplication
+
+  multiplication: multiplication tMULTIOP unary
+                | unary
 
 
-  expr: primary
-  # exp: exp '+' exp { result += val[2] }
-  #    | exp '-' exp { result -= val[2] }
-  #    | exp '*' exp { result *= val[2] }
-  #    | exp '/' exp { result /= val[2] }
-  #    | '(' exp ')' { result = val[1] }
-  #    | '-' NUMBER  =UMINUS { result = -val[1] }
-  #    | NUMBER
+  unary: member
+       | "!" negated_member
+       | "-" negative_member
+
+  negated_member: "!" negated_member
+                | member
+
+  negative_member: "-" negative_member
+                | member
+
+  member: primary
+        | member "." tIDENTIFIER
+        | member "." tIDENTIFIER '(' maybe_expr_list ')'
+        | member '[' expr ']'
+        | member '{' maybe_field_inits '}'
+
 
   primary:  identifier
+         |  identifier '(' maybe_map_inits ')'
          | '(' expr ')' { result = Array(val[1]) }
          | '[' maybe_expr_list ']' { result = Array(val[1]) }
          | '{' maybe_map_inits '}' { result = Hash[val[1]] }
          | literal
 
   identifier: tIDENTIFIER
-            | tIDENTIFIER '{' maybe_map_inits '}' # object
             | '.' tIDENTIFIER
-            | '.' tIDENTIFIER '{' maybe_map_inits '}'
 
   maybe_expr_list: expr_list
                  | { result = nil }
@@ -40,21 +68,46 @@ rule
                  | map_inits
 
   expr_list: expr_list ',' expr { result = Array(val[0]) << val[2] }
-             | expr { [val[0]] }
+           | expr { [val[0]] }
 
+  maybe_field_inits: { result = nil }
+                   | field_inits
 
-  map_inits: map_inits ',' expr ':' expr  { val[0][val[2].to_sym] = val[4]; result = val[0] }
+  field_inits: field_inits ',' tIDENTIFIER ":" expr
+             | tIDENTIFIER ":" expr
+
+  map_inits: map_inits ',' expr ':' expr { val[0][val[2].to_sym] = val[4]; result = val[0] }
            | expr ':' expr { result = { val[0].to_sym => val[2] } }
 
   literal: tNUMBER
          | tBOOL
          | tNULL
          | tSTRING
+
 end
 ---- header
 require 'strscan'
 require 'bigdecimal'
 ---- inner
+
+OPERATORS = {
+  "<" => :tRELOP,
+  "<=" => :tRELOP,
+  ">=" => :tRELOP,
+  ">" => :tRELOP,
+  "==" => :tRELOP,
+  "!=" => :tRELOP,
+  "in" => :tRELOP,
+  "+" => :tADDOP,
+  "-" => :tADDOP,
+  "*" => :tMULTIOP,
+  "/" => :tMULTIOP,
+  "%" => :tMULTIOP,
+  "&&" => :tANDOP,
+  "||" => :tOROP
+}
+
+OPERATORS_RE = Regexp.union(*OPERATORS.keys)
 
 RESERVED = %W[
  in
@@ -127,6 +180,8 @@ def tokenize(str)
       @q << [:tRESERVED, scanner.matched]
     when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
       @q << [:tIDENTIFIER, scanner.matched]
+    when input.scan(OPERATORS_RE)
+      @q << [OPERATORS[input.matched], input.matched]
     when scanner.scan(/\A.|\n/o)
       s = scanner.matched
       @q << [s, s]
@@ -279,6 +334,7 @@ end
 #   end
 # end
 
+# The grammar of CEL is defined below, using | for alternatives, [] for optional, {} for repeated, and () for grouping.
 # Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
 # ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;
 # ConditionalAnd = [ConditionalAnd "&&"] Relation ;
