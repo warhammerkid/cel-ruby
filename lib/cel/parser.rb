@@ -8,24 +8,17 @@ require 'racc/parser.rb'
 
 require 'strscan'
 require 'bigdecimal'
+require 'cel/ast/elements'
 module Cel
   class Parser < Racc::Parser
 
-module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 92)
+module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 93)
+
 
 OPERATORS = {
-  "<" => :tRELOP,
-  "<=" => :tRELOP,
-  ">=" => :tRELOP,
-  ">" => :tRELOP,
-  "==" => :tRELOP,
-  "!=" => :tRELOP,
-  "in" => :tRELOP,
-  "+" => :tADDOP,
-  "-" => :tADDOP,
-  "*" => :tMULTIOP,
-  "/" => :tMULTIOP,
-  "%" => :tMULTIOP,
+  **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+  **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
+  **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
   "&&" => :tANDOP,
   "||" => :tOROP
 }
@@ -103,8 +96,8 @@ def tokenize(str)
       @q << [:tRESERVED, scanner.matched]
     when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
       @q << [:tIDENTIFIER, scanner.matched]
-    when input.scan(OPERATORS_RE)
-      @q << [OPERATORS[input.matched], input.matched]
+    when scanner.scan(OPERATORS_RE)
+      @q << [OPERATORS[scanner.matched], scanner.matched]
     when scanner.scan(/\A.|\n/o)
       s = scanner.matched
       @q << [s, s]
@@ -355,32 +348,32 @@ racc_reduce_table = [
   2, 28, :_reduce_none,
   1, 28, :_reduce_none,
   1, 30, :_reduce_none,
-  5, 29, :_reduce_none,
+  5, 29, :_reduce_4,
   1, 29, :_reduce_none,
-  3, 31, :_reduce_none,
+  3, 31, :_reduce_6,
   1, 31, :_reduce_none,
-  3, 32, :_reduce_none,
+  3, 32, :_reduce_8,
   1, 32, :_reduce_none,
-  3, 33, :_reduce_none,
+  3, 33, :_reduce_10,
   1, 33, :_reduce_none,
-  3, 34, :_reduce_none,
+  3, 34, :_reduce_12,
   1, 34, :_reduce_none,
-  3, 35, :_reduce_none,
+  3, 35, :_reduce_14,
   1, 35, :_reduce_none,
   1, 36, :_reduce_none,
-  2, 36, :_reduce_none,
-  2, 36, :_reduce_none,
-  2, 38, :_reduce_none,
+  2, 36, :_reduce_17,
+  2, 36, :_reduce_18,
+  2, 38, :_reduce_19,
   1, 38, :_reduce_none,
-  2, 39, :_reduce_none,
+  2, 39, :_reduce_21,
   1, 39, :_reduce_none,
   1, 37, :_reduce_none,
-  3, 37, :_reduce_none,
-  6, 37, :_reduce_none,
-  4, 37, :_reduce_none,
-  4, 37, :_reduce_none,
-  1, 40, :_reduce_none,
-  4, 40, :_reduce_none,
+  3, 37, :_reduce_24,
+  6, 37, :_reduce_25,
+  4, 37, :_reduce_26,
+  4, 37, :_reduce_27,
+  1, 40, :_reduce_28,
+  4, 40, :_reduce_29,
   3, 40, :_reduce_30,
   3, 40, :_reduce_31,
   3, 40, :_reduce_32,
@@ -399,10 +392,10 @@ racc_reduce_table = [
   3, 48, :_reduce_none,
   5, 47, :_reduce_46,
   3, 47, :_reduce_47,
-  1, 45, :_reduce_none,
-  1, 45, :_reduce_none,
-  1, 45, :_reduce_none,
-  1, 45, :_reduce_none ]
+  1, 45, :_reduce_48,
+  1, 45, :_reduce_49,
+  1, 45, :_reduce_50,
+  1, 45, :_reduce_51 ]
 
 racc_reduce_n = 52
 
@@ -520,75 +513,155 @@ Racc_debug_parser = false
 
 # reduce 3 omitted
 
-# reduce 4 omitted
+module_eval(<<'.,.,', 'parser.ry', 17)
+  def _reduce_4(val, _values, result)
+     result = Cel::Condition.new(val[0], val[1], val[2])
+    result
+  end
+.,.,
 
 # reduce 5 omitted
 
-# reduce 6 omitted
+module_eval(<<'.,.,', 'parser.ry', 20)
+  def _reduce_6(val, _values, result)
+     result = Cel::Operation.new(val[1], [val[0], val[2]])
+    result
+  end
+.,.,
 
 # reduce 7 omitted
 
-# reduce 8 omitted
+module_eval(<<'.,.,', 'parser.ry', 23)
+  def _reduce_8(val, _values, result)
+     result = Cel::Operation.new(val[1], [val[0], val[2]])
+    result
+  end
+.,.,
 
 # reduce 9 omitted
 
-# reduce 10 omitted
+module_eval(<<'.,.,', 'parser.ry', 26)
+  def _reduce_10(val, _values, result)
+     result = Cel::Operation.new(val[1], [val[0], val[2]])
+    result
+  end
+.,.,
 
 # reduce 11 omitted
 
-# reduce 12 omitted
+module_eval(<<'.,.,', 'parser.ry', 29)
+  def _reduce_12(val, _values, result)
+     result = Cel::Operation.new(val[1], [val[0], val[2]])
+    result
+  end
+.,.,
 
 # reduce 13 omitted
 
-# reduce 14 omitted
+module_eval(<<'.,.,', 'parser.ry', 32)
+  def _reduce_14(val, _values, result)
+     result = Cel::Operation.new(val[1], [val[0], val[2]])
+    result
+  end
+.,.,
 
 # reduce 15 omitted
 
 # reduce 16 omitted
 
-# reduce 17 omitted
+module_eval(<<'.,.,', 'parser.ry', 37)
+  def _reduce_17(val, _values, result)
+     result = Cel::Operation.new("!", [v[1]])
+    result
+  end
+.,.,
 
-# reduce 18 omitted
+module_eval(<<'.,.,', 'parser.ry', 38)
+  def _reduce_18(val, _values, result)
+     result = Cel::Operation.new("-", [v[1]])
+    result
+  end
+.,.,
 
-# reduce 19 omitted
+module_eval(<<'.,.,', 'parser.ry', 40)
+  def _reduce_19(val, _values, result)
+     result = Cel::Operation.new("!", [v[1]])
+    result
+  end
+.,.,
 
 # reduce 20 omitted
 
-# reduce 21 omitted
+module_eval(<<'.,.,', 'parser.ry', 43)
+  def _reduce_21(val, _values, result)
+     result = Cel::Operation.new("-", [v[1]])
+    result
+  end
+.,.,
 
 # reduce 22 omitted
 
 # reduce 23 omitted
 
-# reduce 24 omitted
+module_eval(<<'.,.,', 'parser.ry', 47)
+  def _reduce_24(val, _values, result)
+     result = Cel::Invoke.new(var: val[0], func: val[2])
+    result
+  end
+.,.,
 
-# reduce 25 omitted
+module_eval(<<'.,.,', 'parser.ry', 48)
+  def _reduce_25(val, _values, result)
+     result = Cel::Invoke.new(var: val[0], func: val[2], args: val[4])
+    result
+  end
+.,.,
 
-# reduce 26 omitted
+module_eval(<<'.,.,', 'parser.ry', 49)
+  def _reduce_26(val, _values, result)
+     result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2])
+    result
+  end
+.,.,
 
-# reduce 27 omitted
+module_eval(<<'.,.,', 'parser.ry', 50)
+  def _reduce_27(val, _values, result)
+     result = Cel::WithStruct.new(v[0], v[2])
+    result
+  end
+.,.,
 
-# reduce 28 omitted
+module_eval(<<'.,.,', 'parser.ry', 53)
+  def _reduce_28(val, _values, result)
+     result = Cel::Identifier.new(val[0])
+    result
+  end
+.,.,
 
-# reduce 29 omitted
+module_eval(<<'.,.,', 'parser.ry', 54)
+  def _reduce_29(val, _values, result)
+     result = Cel::Invoke.new(func: val[0], args: val[2])
+    result
+  end
+.,.,
 
 module_eval(<<'.,.,', 'parser.ry', 55)
   def _reduce_30(val, _values, result)
-     result = Array(val[1])
+     result = Cel::Group.new(val[1])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 56)
   def _reduce_31(val, _values, result)
-     result = Array(val[1])
+     result = Cel::List.new(Array(val[1]))
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 57)
   def _reduce_32(val, _values, result)
-     result = Hash[val[1]]
+     result = Cel::Struct.new(Hash[val[1]])
     result
   end
 .,.,
@@ -646,25 +719,45 @@ module_eval(<<'.,.,', 'parser.ry', 72)
 
 module_eval(<<'.,.,', 'parser.ry', 78)
   def _reduce_46(val, _values, result)
-     val[0][val[2].to_sym] = val[4]; result = val[0]
+     val[0][val[2]] = val[4]; result = val[0]
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 79)
   def _reduce_47(val, _values, result)
-     result = { val[0].to_sym => val[2] }
+     result = { val[0] => val[2] }
     result
   end
 .,.,
 
-# reduce 48 omitted
+module_eval(<<'.,.,', 'parser.ry', 81)
+  def _reduce_48(val, _values, result)
+     result = Cel::Number.new(val[0])
+    result
+  end
+.,.,
 
-# reduce 49 omitted
+module_eval(<<'.,.,', 'parser.ry', 82)
+  def _reduce_49(val, _values, result)
+     result = Cel::Bool.new(val[0])
+    result
+  end
+.,.,
 
-# reduce 50 omitted
+module_eval(<<'.,.,', 'parser.ry', 83)
+  def _reduce_50(val, _values, result)
+     result = Cel::Null.new()
+    result
+  end
+.,.,
 
-# reduce 51 omitted
+module_eval(<<'.,.,', 'parser.ry', 84)
+  def _reduce_51(val, _values, result)
+     result = Cel::String.new(val[0])
+    result
+  end
+.,.,
 
 def _reduce_none(val, _values, result)
   val[0]

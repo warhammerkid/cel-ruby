@@ -19,14 +19,19 @@ class CelParserTest < Minitest::Test
     end
   end
 
+  def test_literal_operation
+    parser = Cel::Parser.new
+    assert_equal parser.parse("1 == 2"), ["==", 1, 2]
+  end
+
   def test_expression_parsing
     parser = Cel::Parser.new
     # assert_equal "a", parser.parse("a")
-    assert_equal [], parser.parse("[]")
-    assert_equal [1], parser.parse("[1]")
-    assert_equal [1, 2, 3], parser.parse("[1, 2, 3]")
-    assert_equal [1, 2, 3, 4, 5.0], parser.parse("[1, 2, 3, 4, 5.0]")
-    assert_equal({a: 1, b: 2, c: 3}, parser.parse("{a: 1, b: 2, c: 3}"))
+    assert_equal parser.parse("[]"), []
+    assert_equal parser.parse("[1]"), [1]
+    assert_equal parser.parse("[1, 2, 3]"), [1, 2, 3]
+    assert_equal parser.parse("[1, 2, 3, 4, 5.0]"), [1, 2, 3, 4, 5.0]
+    assert_equal parser.parse("{a: 1, b: 2, c: 3}"), {a: 1, b: 2, c: 3}
   end
 
   private
@@ -38,6 +43,7 @@ class CelParserTest < Minitest::Test
   def number_tokens
     [
       ["123", 123],
+      ["-123", -123],
       ["12345", 12345],
       ["1.2", 1.2],
       ["1e2", 100.0],

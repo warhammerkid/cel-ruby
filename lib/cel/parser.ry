@@ -15,47 +15,47 @@ rule
   eof: tEOF
 
 
-  expr: conditional_or "?" conditional_or ":" expr
+  expr: conditional_or "?" conditional_or ":" expr { result = Cel::Condition.new(val[0], val[1], val[2]) }
       | conditional_or
 
-  conditional_or: conditional_or tOROP conditional_and
+  conditional_or: conditional_or tOROP conditional_and { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
                 | conditional_and
 
-  conditional_and: conditional_and tANDOP relation
+  conditional_and: conditional_and tANDOP relation { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
                  | relation
 
-  relation: relation tRELOP addition
+  relation: relation tRELOP addition { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
           | addition
 
-  addition: addition tADDOP multiplication
+  addition: addition tADDOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
           | multiplication
 
-  multiplication: multiplication tMULTIOP unary
+  multiplication: multiplication tMULTIOP unary { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
                 | unary
 
 
   unary: member
-       | "!" negated_member
-       | "-" negative_member
+       | "!" negated_member { result = Cel::Operation.new("!", [v[1]]) }
+       | "-" negative_member { result = Cel::Operation.new("-", [v[1]]) }
 
-  negated_member: "!" negated_member
+  negated_member: "!" negated_member { result = Cel::Operation.new("!", [v[1]]) }
                 | member
 
-  negative_member: "-" negative_member
+  negative_member: "-" negative_member { result = Cel::Operation.new("-", [v[1]]) }
                 | member
 
   member: primary
-        | member "." tIDENTIFIER
-        | member "." tIDENTIFIER '(' maybe_expr_list ')'
-        | member '[' expr ']'
-        | member '{' maybe_field_inits '}'
+        | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
+        | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: val[4]) }
+        | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
+        | member '{' maybe_field_inits '}' { result = Cel::WithStruct.new(v[0], v[2]) }
 
 
-  primary:  identifier
-         |  identifier '(' maybe_map_inits ')'
-         | '(' expr ')' { result = Array(val[1]) }
-         | '[' maybe_expr_list ']' { result = Array(val[1]) }
-         | '{' maybe_map_inits '}' { result = Hash[val[1]] }
+  primary:  identifier { result = Cel::Identifier.new(val[0]) }
+         |  identifier '(' maybe_map_inits ')'  { result = Cel::Invoke.new(func: val[0], args: val[2]) }
+         | '(' expr ')' { result = Cel::Group.new(val[1]) }
+         | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
+         | '{' maybe_map_inits '}' { result = Cel::Struct.new(Hash[val[1]]) }
          | literal
 
   identifier: tIDENTIFIER
@@ -76,33 +76,26 @@ rule
   field_inits: field_inits ',' tIDENTIFIER ":" expr
              | tIDENTIFIER ":" expr
 
-  map_inits: map_inits ',' expr ':' expr { val[0][val[2].to_sym] = val[4]; result = val[0] }
-           | expr ':' expr { result = { val[0].to_sym => val[2] } }
+  map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
+           | expr ':' expr { result = { val[0] => val[2] } }
 
-  literal: tNUMBER
-         | tBOOL
-         | tNULL
-         | tSTRING
+  literal: tNUMBER { result = Cel::Number.new(val[0]) }
+         | tBOOL { result = Cel::Bool.new(val[0]) }
+         | tNULL { result = Cel::Null.new() }
+         | tSTRING { result = Cel::String.new(val[0]) }
 
 end
 ---- header
 require 'strscan'
 require 'bigdecimal'
+require 'cel/ast/elements'
 ---- inner
 
+
 OPERATORS = {
-  "<" => :tRELOP,
-  "<=" => :tRELOP,
-  ">=" => :tRELOP,
-  ">" => :tRELOP,
-  "==" => :tRELOP,
-  "!=" => :tRELOP,
-  "in" => :tRELOP,
-  "+" => :tADDOP,
-  "-" => :tADDOP,
-  "*" => :tMULTIOP,
-  "/" => :tMULTIOP,
-  "%" => :tMULTIOP,
+  **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+  **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
+  **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
   "&&" => :tANDOP,
   "||" => :tOROP
 }
@@ -180,8 +173,8 @@ def tokenize(str)
       @q << [:tRESERVED, scanner.matched]
     when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
       @q << [:tIDENTIFIER, scanner.matched]
-    when input.scan(OPERATORS_RE)
-      @q << [OPERATORS[input.matched], input.matched]
+    when scanner.scan(OPERATORS_RE)
+      @q << [OPERATORS[scanner.matched], scanner.matched]
     when scanner.scan(/\A.|\n/o)
       s = scanner.matched
       @q << [s, s]
