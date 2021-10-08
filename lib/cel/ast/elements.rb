@@ -5,6 +5,27 @@ module Cel
   ADD_OPERATORS = %w[+ -]
   MULTI_OPERATORS = %w[* / %]
 
+  PRIMITIVE_TYPES = %w[int uint double bool string bytes list map null_type type]
+
+  class Type
+    def initialize(type)
+      @type = type
+    end
+
+    def ==(other)
+      super || other == @type
+    end
+
+    def type
+      TYPES[:type]
+    end
+  end
+
+  TYPES = Hash[
+    PRIMITIVE_TYPES.map {|typ| [typ.to_sym, Type.new(typ.to_sym)]}
+  ]
+  TYPES[:type] == Type.new(:type)
+
   class Identifier
     attr_reader :id
 
@@ -17,6 +38,10 @@ module Cel
 
     def ==(other)
       super || other.to_s == @id.to_s
+    end
+
+    def to_s
+      @id.to_s
     end
   end
 
@@ -38,13 +63,20 @@ module Cel
       @func = func
       @args = args
     end
+
+    def ==(other)
+      super || (
+        other.respond_to?(:to_ary) &&
+        [@var, @func, @args].compact == other
+      )
+    end
   end
 
   class Literal < SimpleDelegator
     attr_reader :type, :value
 
     def initialize(type, value)
-      @type = type
+      @type = TYPES[type]
       @value = value
       super(value)
     end
@@ -55,9 +87,6 @@ module Cel
   end
 
   class Number < Literal
-    def initialize(value)
-      super(:number, value)
-    end
   end
 
   class Bool < Literal
@@ -68,13 +97,19 @@ module Cel
 
   class Null < Literal
     def initialize()
-      super(:null, nil)
+      super(:null_type, nil)
     end
   end
 
   class String < Literal
     def initialize(value)
       super(:string, value)
+    end
+  end
+
+  class Bytes < Literal
+    def initialize(value)
+      super(:bytes, value)
     end
   end
 
@@ -93,7 +128,7 @@ module Cel
 
   class Struct < Literal
     def initialize(value)
-      super(:struct, value)
+      super(:map, value)
     end
 
     def ==(other)

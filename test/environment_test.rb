@@ -23,6 +23,13 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("{a: 2}.a"), 2
   end
 
+  def test_evaluate_type_literal
+    assert_equal environment.evaluate("type(1)"), :int
+    assert_equal environment.evaluate("type('a')"), :string
+    assert_equal environment.evaluate("type(1) == string"), false
+    assert_equal environment.evaluate("type(type(1)) == type(string)"), true
+  end
+
   private
 
   def environment

@@ -8,7 +8,7 @@ module Cel
     def call(ast)
       case ast
       when Invoke
-        evaluation_invoke(ast)
+        evaluate_invoke(ast)
       when Operation
         evaluate_operation(ast)
       when Literal
@@ -55,11 +55,28 @@ module Cel
       end
     end
 
-    def evaluation_invoke(funcall)
+    def evaluate_invoke(funcall)
       var = funcall.var
       func = funcall.func
       args = funcall.args
+
+      return evaluate_standard_func(func, args) unless var
+
       var.public_send(func, args)
+    end
+
+    def evaluate_standard_func(func, args)
+      case func
+      when "type"
+        if Cel::PRIMITIVE_TYPES.include?(args.to_s)
+          TYPES[:type]
+        else
+          elem = call(args)
+          elem.type
+        end
+      else
+        raise Error, "#{func} is not supported"
+      end
     end
   end
 end

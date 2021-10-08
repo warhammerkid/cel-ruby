@@ -8,7 +8,7 @@ class CelParserTest < Minitest::Test
       parser = Cel::Parser.new
       parser.tokenize(input)
       next_token = parser.next_token
-      assert_equal [:tNUMBER, expected], next_token
+      assert_equal expected, next_token
     end
 
     string_tokens.each do |input, expected|
@@ -16,6 +16,13 @@ class CelParserTest < Minitest::Test
       input = input.dup.force_encoding(Encoding::BINARY)
       parser.tokenize(input)
       assert_equal [:tSTRING, expected], parser.next_token
+    end
+
+    bytes_tokens.each do |input, expected|
+      parser = Cel::Parser.new
+      input = input.dup.force_encoding(Encoding::BINARY)
+      parser.tokenize(input)
+      assert_equal [:tBYTES, expected], parser.next_token
     end
   end
 
@@ -35,6 +42,10 @@ class CelParserTest < Minitest::Test
     assert_equal parser.parse("{a: 1, b: 2, c: 3}"), {a: 1, b: 2, c: 3}
   end
 
+  def test_funcall
+    assert_equal parser.parse("type(1)"), ["type", 1]
+  end
+
   private
 
   def parser
@@ -43,14 +54,14 @@ class CelParserTest < Minitest::Test
 
   def number_tokens
     [
-      ["123", 123],
-      ["-123", -123],
-      ["12345", 12345],
-      ["1.2", 1.2],
-      ["1e2", 100.0],
-      ["-1.2e2", -120.0],
-      ["-12u", 12],
-      ["0xa123", 41251],
+      ["123", [:tINT, 123]],
+      ["-123", [:tINT, -123]],
+      ["12345", [:tINT, 12345]],
+      ["1.2", [:tDOUBLE, 1.2]],
+      ["1e2", [:tDOUBLE, 100.0]],
+      ["-1.2e2", [:tDOUBLE, -120.0]],
+      ["-12u", [:tUINT, 12]],
+      ["0xa123", [:tINT, 41251]]
     ]
   end
 
@@ -62,6 +73,11 @@ class CelParserTest < Minitest::Test
       [%Q{"\\""}, "\""], # String of one double-quote character
       [%Q{"\\"}, "\\"], # String of one backslash character
       [%Q{r"\\"}, "\\\\"], # String of two backslash characters
+    ]
+  end
+
+  def bytes_tokens
+    [
       [%Q{b"abc"}, [97, 98, 99]], # Byte sequence of 97, 98, 99
       [%Q{b"ÿ"}, [195, 191]], # Sequence of bytes 195 and 191 (UTF-8 of ÿ)
       [%Q{b"\303\277"}, [195, 191]], # Also sequence of bytes 195 and 191

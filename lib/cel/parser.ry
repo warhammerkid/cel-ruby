@@ -1,5 +1,5 @@
 class Cel::Parser
-  token tNUMBER tBOOL tNULL tSTRING tRESERVED tIDENTIFIER
+  token tINT tUINT tDOUBLE tBOOL tNULL tSTRING tBYTES tRESERVED tIDENTIFIER
         tMULTIOP tADDOP tRELOP tANDOP tOROP tEOF
   prechigh
     nonassoc UMINUS
@@ -52,7 +52,7 @@ rule
 
 
   primary:  identifier { result = Cel::Identifier.new(val[0]) }
-         |  identifier '(' maybe_map_inits ')'  { result = Cel::Invoke.new(func: val[0], args: val[2]) }
+         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: val[2]) }
          | '(' expr ')' { result = Cel::Group.new(val[1]) }
          | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
          | '{' maybe_map_inits '}' { result = Cel::Struct.new(Hash[val[1]]) }
@@ -79,10 +79,13 @@ rule
   map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
            | expr ':' expr { result = { val[0] => val[2] } }
 
-  literal: tNUMBER { result = Cel::Number.new(val[0]) }
+  literal: tINT { result = Cel::Number.new(:int, val[0]) }
+         | tUINT { result = Cel::Number.new(:uint, val[0]) }
+         | tDOUBLE { result = Cel::Number.new(:double, val[0]) }
          | tBOOL { result = Cel::Bool.new(val[0]) }
          | tNULL { result = Cel::Null.new() }
          | tSTRING { result = Cel::String.new(val[0]) }
+         | tBYTES { result = Cel::Bytes.new(val[0]) }
 
 end
 ---- header
@@ -144,7 +147,7 @@ def tokenize(str)
     when scanner.scan(/#(( *)|( ?(?<string>.*)))\n/)
       # skip comment lines
     when scanner.scan(/\-?#{NUMBER_REGEX}/)
-      @q << [:tNUMBER, convert_to_number(scanner)]
+      @q << convert_to_number(scanner)
     when scanner.scan(/true|false/)
       @q << [:tBOOL, scanner.matched == "true"]
     when scanner.scan(/null/)
@@ -168,7 +171,13 @@ def tokenize(str)
 
       # s = scanner.matched.yield_self {|s| s[1, s.length - 2] }.gsub(/\\'/, "'")
 
-      @q << [:tSTRING, convert_to_string(scanner.matched)]
+      str = scanner.matched
+
+      @q << if str.start_with?("b")
+        [:tBYTES, convert_to_bytes(str.byteslice(2..-2))]
+      else
+        [:tSTRING, convert_to_string(str)]
+      end
     when scanner.scan(RESERVED_REGEX)
       @q << [:tRESERVED, scanner.matched]
     when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
@@ -194,27 +203,27 @@ def convert_to_number(scanner)
   hexa, uint, number, floating, exp = scanner.captures
 
   if !hexa.empty?
-    return hexa.to_i(16)
+    return [:tINT, hexa.to_i(16)]
   end
 
   if !uint.empty?
-    return Integer(uint)
+    return [:tUINT, Integer(uint)]
   end
 
   if !exp.empty?
     # third matched group, can only be a floating exponential, let's convert tout suite
-    BigDecimal(matched)
+    [:tDOUBLE, BigDecimal(matched)]
   elsif !floating.empty?
     if number == floating || floating.start_with?(".")
-      Float(matched)
+      [:tDOUBLE, Float(matched)]
     elsif number.empty?
-      BigDecimal(matched)
+      [:tDOUBLE, BigDecimal(matched)]
     end
   else
     if matched[-1].downcase == "u"
-      Integer(matched[0..-2]).abs
+      [:tINT, Integer(matched[0..-2]).abs]
     else
-      Integer(matched)
+      [:tINT, Integer(matched)]
     end
   end
 end
@@ -223,7 +232,6 @@ TRIPE_DOUBLE_QUOTES = %Q{"""}
 TRIPE_SINGLE_QUOTES = %Q{'''}
 
 def convert_to_string(str)
-  return convert_to_bytes(str.byteslice(2..-2)) if str.start_with?("b")
 
   if str.start_with?("r")
     # If preceded by an r or R character, the string is a raw string
