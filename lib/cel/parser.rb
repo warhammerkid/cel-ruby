@@ -38,8 +38,8 @@ RESERVED_REGEX = Regexp.union(*RESERVED)
 STRING_LIT_REGEX = Regexp.union(
   /"""(?~""")*"""/,
   /'''(?~''')*'''/,
-  /"(\"|[^"])*"/,
-  /'(\'|[^'])*'/,
+  /"(\\"|[^"])*"/,
+  /'(\\'|[^'])*'/,
 )
 
 NUMBER_REGEX = Regexp.union(
@@ -184,6 +184,8 @@ ESCAPE_UNION = Regexp.union(BIN_ESCAPE, HEX_ESCAPE, BPM_ESCAPE, WHITESPACE_ESCAP
 def cleanup_escape_sequences(str)
   str.gsub!(ESCAPE_UNION) do |match|
     case match
+    when /\\"/
+      "\""
     when BIN_ESCAPE
       # For strings, it denotes the unicode code point.
       Regexp.last_match(1).to_i.chr(Encoding::UTF_8)
@@ -571,21 +573,21 @@ module_eval(<<'.,.,', 'parser.ry', 32)
 
 module_eval(<<'.,.,', 'parser.ry', 37)
   def _reduce_17(val, _values, result)
-     result = Cel::Operation.new("!", [v[1]])
+     result = Cel::Operation.new("!", [val[1]])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 38)
   def _reduce_18(val, _values, result)
-     result = Cel::Operation.new("-", [v[1]])
+     result = Cel::Operation.new("-", [val[1]])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 40)
   def _reduce_19(val, _values, result)
-     result = Cel::Operation.new("!", [v[1]])
+     result = Cel::Operation.new("!", [val[1]])
     result
   end
 .,.,
@@ -594,7 +596,7 @@ module_eval(<<'.,.,', 'parser.ry', 40)
 
 module_eval(<<'.,.,', 'parser.ry', 43)
   def _reduce_21(val, _values, result)
-     result = Cel::Operation.new("-", [v[1]])
+     result = Cel::Operation.new("-", [val[1]])
     result
   end
 .,.,

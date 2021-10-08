@@ -1,3 +1,5 @@
+require "delegate"
+
 module Cel
   LOGICAL_OPERATORS =  %w[< <= >= > == != in]
   ADD_OPERATORS = %w[+ -]
@@ -38,12 +40,13 @@ module Cel
     end
   end
 
-  class Literal
+  class Literal < SimpleDelegator
     attr_reader :type, :value
 
     def initialize(type, value)
       @type = type
       @value = value
+      super(value)
     end
 
     def ==(other)
@@ -98,6 +101,12 @@ module Cel
         other.respond_to?(:to_hash) &&
         @value.zip(other).all?{|(x1, y1), (x2, y2)| x1 == x2 && y1 == y2 }
       )
+    end
+
+    def method_missing(meth, *args)
+      key = @value.keys.find { |k| k == meth } or return super
+
+      @value[key]
     end
   end
 

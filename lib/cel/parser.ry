@@ -35,13 +35,13 @@ rule
 
 
   unary: member
-       | "!" negated_member { result = Cel::Operation.new("!", [v[1]]) }
-       | "-" negative_member { result = Cel::Operation.new("-", [v[1]]) }
+       | "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
+       | "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
 
-  negated_member: "!" negated_member { result = Cel::Operation.new("!", [v[1]]) }
+  negated_member: "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
                 | member
 
-  negative_member: "-" negative_member { result = Cel::Operation.new("-", [v[1]]) }
+  negative_member: "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
                 | member
 
   member: primary
@@ -115,8 +115,8 @@ RESERVED_REGEX = Regexp.union(*RESERVED)
 STRING_LIT_REGEX = Regexp.union(
   /"""(?~""")*"""/,
   /'''(?~''')*'''/,
-  /"(\"|[^"])*"/,
-  /'(\'|[^'])*'/,
+  /"(\\"|[^"])*"/,
+  /'(\\'|[^'])*'/,
 )
 
 NUMBER_REGEX = Regexp.union(
@@ -261,6 +261,8 @@ ESCAPE_UNION = Regexp.union(BIN_ESCAPE, HEX_ESCAPE, BPM_ESCAPE, WHITESPACE_ESCAP
 def cleanup_escape_sequences(str)
   str.gsub!(ESCAPE_UNION) do |match|
     case match
+    when /\\"/
+      "\""
     when BIN_ESCAPE
       # For strings, it denotes the unicode code point.
       Regexp.last_match(1).to_i.chr(Encoding::UTF_8)

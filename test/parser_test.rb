@@ -22,6 +22,7 @@ class CelParserTest < Minitest::Test
   def test_literal_operation
     parser = Cel::Parser.new
     assert_equal parser.parse("1 == 2"), ["==", 1, 2]
+    assert_equal parser.parse("'hello' == 'world'"), ["==", "hello", "world"]
   end
 
   def test_expression_parsing
@@ -58,7 +59,7 @@ class CelParserTest < Minitest::Test
       [%Q{""}, ""], # Empty string
       [%Q{'""'}, "\"\""], # String of two double-quote characters
       [%Q{'''x''x'''}, "x''x"], # String of four characters "x''x"
-      [%Q{"\""}, "\""], # String of one double-quote character
+      [%Q{"\\""}, "\""], # String of one double-quote character
       [%Q{"\\"}, "\\"], # String of one backslash character
       [%Q{r"\\"}, "\\\\"], # String of two backslash characters
       [%Q{b"abc"}, [97, 98, 99]], # Byte sequence of 97, 98, 99
