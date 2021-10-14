@@ -32,13 +32,32 @@ module Cel
     end
   end
 
+  class ListType < Type
+    def initialize(type_list)
+      @type_list = type_list
+    end
+
+    def get(idx)
+      @type_list[idx]
+    end
+  end
+
+  class MapType < Type
+    def initialize(type_map)
+      @type_map = type_map
+    end
+
+    def get(attrib)
+      _, value = @type_map.find { |k, _| k == attrib }
+      value
+    end
+  end
+
   # Primitive Cel Types
 
   PRIMITIVE_TYPES = %i[int uint double bool string bytes list map null_type type]
   TYPES = Hash[
     PRIMITIVE_TYPES.map {|typ| [typ, Type.new(typ)]}
   ]
-  TYPES[:map] == Type.new(:map)
-  TYPES[:list] == Type.new(:list)
   TYPES[:type] == Type.new(:type)
 end

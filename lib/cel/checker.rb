@@ -7,6 +7,8 @@ module Cel
 
     def check(ast)
       case ast
+      when Group
+        check(ast.value)
       when Invoke
         check_invoke(ast)
       when Operation

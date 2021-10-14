@@ -6,7 +6,7 @@ module Cel
   ADD_OPERATORS = %w[+ -]
   MULTI_OPERATORS = %w[* / %]
 
-  class Identifier
+  class Identifier < SimpleDelegator
     attr_reader :id
 
     attr_accessor :type
@@ -14,18 +14,11 @@ module Cel
     def initialize(identifier)
       @id = identifier
       @type = :any
+      super(@id)
     end
 
     def ==(other)
       super || other.to_s == @id.to_s
-    end
-
-    def to_s
-      @id.to_s
-    end
-
-    def to_sym
-      @id.to_sym
     end
   end
 
@@ -34,8 +27,8 @@ module Cel
 
     def initialize(type, struct)
       check(struct)
-      @type = type
       @struct = OpenStruct.new(struct)
+      @type = type.is_a?(Type) ? type : MapType.new(struct)
       super(@struct)
     end
 
@@ -71,7 +64,7 @@ module Cel
     attr_reader :type, :value
 
     def initialize(type, value)
-      @type = TYPES[type]
+      @type = type.is_a?(Type) ? type : TYPES[type]
       @value = value
       super(value)
     end
@@ -114,7 +107,7 @@ module Cel
 
   class List < Literal
     def initialize(value)
-      super(:list, value)
+      super(ListType.new(value), value)
     end
 
     def ==(other)
@@ -127,7 +120,7 @@ module Cel
 
   class Map < Literal
     def initialize(value)
-      super(:map, value)
+      super(MapType.new(value), value)
     end
 
     def ==(other)
