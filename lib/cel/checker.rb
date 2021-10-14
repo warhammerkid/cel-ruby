@@ -37,9 +37,7 @@ module Cel
       values = operation.operands.map do |operand|
         ev_operand = call(operand)
 
-        return :any if ev_operand == :any && !%w[== !=].include?(op)
-
-        # return ev_operand if op == "||" && ev_operand == true
+        return :any if ev_operand == :any && !%w[&& || == != < <= >= >].include?(op)
 
         ev_operand
       end
@@ -64,18 +62,7 @@ module Cel
       else
 
         case op
-        when "==", "!="
-          # generic
-          TYPES[:bool]
-        when "<", "<=", ">=", ">"
-          return :any if values.include?(:any)
-
-          verify_all_match_type?(op, LOGICAL_EXPECTED_TYPES, values)
-
-          TYPES[:bool]
-        when "&&", "||"
-          verify_all_match_type?(op, %i[bool], values)
-
+        when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
           TYPES[:bool]
         when "+"
           verify_all_match_type?(op, ADD_EXPECTED_TYPES, values)
@@ -106,14 +93,23 @@ module Cel
 
       return check_standard_func(func, args) unless var
 
-      if func == :[]
-        # can't make assumptions on list/map lookups
-        return :any
-      end
+      case var.type
+      when MapType
+        attribute = var.type.get(func)
 
-      args ?
-      var.public_send(func, *args).type :
-      var.public_send(func).type
+        unsupported_operation("#{var}.#{func}") unless attribute
+
+        call(attribute)
+      when ListType
+        case func
+        when :[]
+          call(var.type.get(args))
+        else
+          unsupported_operation("#{var}.#{func}")
+        end
+      else
+        :any
+      end
     end
 
     def check_standard_func(func, args)

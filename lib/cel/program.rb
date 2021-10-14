@@ -10,10 +10,14 @@ module Cel
 
     def evaluate(ast)
       case ast
+      when Group
+        evaluate(ast.value)
       when Invoke
         evaluate_invoke(ast)
       when Operation
         evaluate_operation(ast)
+      when Message
+        ast.struct
       when Literal
         evaluate_literal(ast)
       when Identifier
@@ -35,8 +39,6 @@ module Cel
 
     def evaluate_literal(val)
       case val
-      when Struct
-        Hash[val.value.map { |x, y| [call(x), call(y)] }]
       when List
         val.value.map { |y| call(y) }
       else
@@ -80,8 +82,8 @@ module Cel
       return evaluate_standard_func(func, args) unless var
 
       args ?
-      var.public_send(func, *args) :
-      var.public_send(func)
+      call(var).public_send(func, *args) :
+      call(var).public_send(func)
     end
 
     def evaluate_standard_func(func, args)

@@ -20,6 +20,11 @@ module Cel
       @checker.check(ast)
     end
 
+    def program(expr)
+      expr = compile(expr) if expr.is_a?(::String)
+      Runner.new(expr)
+    end
+
     def evaluate(expr, bindings = nil)
       context = Context.new(bindings)
       expr = compile(expr) if expr.is_a?(::String)
@@ -30,6 +35,17 @@ module Cel
 
     def validate(ast, structs)
 
+    end
+  end
+
+  class Runner
+    def initialize(ast)
+      @ast = ast
+    end
+
+    def evaluate(bindings = nil)
+      context = Context.new(bindings)
+      Program.new(context).evaluate(@ast)
     end
   end
 end
