@@ -48,14 +48,14 @@ rule
         | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
         | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: val[4]) }
         | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
-        | member '{' maybe_field_inits '}' { result = Cel::WithStruct.new(v[0], v[2]) }
+        | member '{' maybe_field_inits '}' { result = Cel::WithStruct.new(val[0], val[2]) }
 
 
   primary:  identifier { result = Cel::Identifier.new(val[0]) }
          |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: val[2]) }
          | '(' expr ')' { result = Cel::Group.new(val[1]) }
          | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
-         | '{' maybe_map_inits '}' { result = Cel::Struct.new(Hash[val[1]]) }
+         | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }
          | literal
 
   identifier: tIDENTIFIER
@@ -74,7 +74,7 @@ rule
                    | field_inits
 
   field_inits: field_inits ',' tIDENTIFIER ":" expr
-             | tIDENTIFIER ":" expr
+             | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0] => val[2] } }
 
   map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
            | expr ':' expr { result = { val[0] => val[2] } }

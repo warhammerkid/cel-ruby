@@ -15,9 +15,10 @@ module Cel
       @parser.parse(expr)
     end
 
-    def evaluate(expr)
+    def evaluate(expr, bindings = nil)
+      context = Context.new(bindings)
       expr = compile(expr) if expr.is_a?(::String)
-      Program.call(expr)
+      Program.new(context).evaluate(expr)
     end
   end
 end

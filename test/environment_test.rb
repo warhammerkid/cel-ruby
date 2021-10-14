@@ -16,11 +16,11 @@ class CelEnvironmentTest < Minitest::Test
 
     assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
     assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false
-    assert_equal environment.evaluate("{a: 1} == {a: 1}"), true
-    assert_equal environment.evaluate("{a: 2} == {a: 2}"), true
+    assert_equal environment.evaluate("{'a': 1} == {'a': 1}"), true
+    assert_equal environment.evaluate("{'a': 2} == {'a': 2}"), true
 
     assert_equal environment.evaluate("[1, 2][0]"), 1
-    assert_equal environment.evaluate("{a: 2}.a"), 2
+    assert_equal environment.evaluate("Struct{a: 2}.a"), 2
   end
 
   def test_evaluate_type_literal
@@ -28,6 +28,11 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("type('a')"), :string
     assert_equal environment.evaluate("type(1) == string"), false
     assert_equal environment.evaluate("type(type(1)) == type(string)"), true
+  end
+
+  def test_evaluate_var_expression
+    assert_raises(Cel::Error) { environment.evaluate("a == 2") }
+    assert_equal environment.evaluate("a == 2", {a: 1}), false
   end
 
   private

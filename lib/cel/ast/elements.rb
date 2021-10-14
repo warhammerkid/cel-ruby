@@ -1,4 +1,5 @@
 require "delegate"
+require "ostruct"
 
 module Cel
   LOGICAL_OPERATORS =  %w[< <= >= > == != in]
@@ -43,14 +44,29 @@ module Cel
     def to_s
       @id.to_s
     end
+
+    def to_sym
+      @id.to_sym
+    end
   end
 
-  class WithStruct
-    attr_reader :val, :struct
+  class Message < SimpleDelegator
+    attr_reader :type, :struct
 
-    def initialize(val, struct)
-      @val = val
-      @struct = struct
+    def initialize(type, struct)
+      check(struct)
+      @type = type
+      @struct = OpenStruct.new(struct)
+      super(@struct)
+    end
+
+    private
+
+    # For a message, the field names are identifiers.
+    def check(struct)
+      unless struct.each_key.all? { |key| key.is_a?(Identifier) }
+        raise Error, "#{struct} is invalid (keys must be identifiers)"
+      end
     end
   end
 
@@ -60,7 +76,7 @@ module Cel
 
     def initialize(func:, var: nil, args: nil)
       @var = var
-      @func = func
+      @func = func.to_sym
       @args = args
     end
 
@@ -84,6 +100,10 @@ module Cel
     def ==(other)
       @value == other || super
     end
+
+    private
+
+    def check; end
   end
 
   class Number < Literal
@@ -126,7 +146,7 @@ module Cel
     end
   end
 
-  class Struct < Literal
+  class Map < Literal
     def initialize(value)
       super(:map, value)
     end
@@ -142,6 +162,18 @@ module Cel
       key = @value.keys.find { |k| k == meth } or return super
 
       @value[key]
+    end
+
+    private
+
+    ALLOWED_TYPES = %i[int uint bool string]
+
+    # For a map, the entry keys are sub-expressions that must evaluate to values
+    # of an allowed type (int, uint, bool, or string)
+    def check
+      unless @value.each_key.all? { |key| ALLOWED_TYPES.include?(key.type) }
+        raise Error, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
+      end
     end
   end
 

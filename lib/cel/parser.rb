@@ -408,7 +408,7 @@ racc_reduce_table = [
   0, 45, :_reduce_42,
   1, 45, :_reduce_none,
   5, 51, :_reduce_none,
-  3, 51, :_reduce_none,
+  3, 51, :_reduce_45,
   5, 50, :_reduce_46,
   3, 50, :_reduce_47,
   1, 48, :_reduce_48,
@@ -654,7 +654,7 @@ module_eval(<<'.,.,', 'parser.ry', 49)
 
 module_eval(<<'.,.,', 'parser.ry', 50)
   def _reduce_27(val, _values, result)
-     result = Cel::WithStruct.new(v[0], v[2])
+     result = Cel::Message.new(val[0], val[2])
     result
   end
 .,.,
@@ -689,7 +689,7 @@ module_eval(<<'.,.,', 'parser.ry', 56)
 
 module_eval(<<'.,.,', 'parser.ry', 57)
   def _reduce_32(val, _values, result)
-     result = Cel::Struct.new(Hash[val[1]])
+     result = Cel::Map.new(Hash[val[1]])
     result
   end
 .,.,
@@ -743,7 +743,12 @@ module_eval(<<'.,.,', 'parser.ry', 72)
 
 # reduce 44 omitted
 
-# reduce 45 omitted
+module_eval(<<'.,.,', 'parser.ry', 76)
+  def _reduce_45(val, _values, result)
+     result = { Cel::Identifier.new(val[0]) => val[2] }
+    result
+  end
+.,.,
 
 module_eval(<<'.,.,', 'parser.ry', 78)
   def _reduce_46(val, _values, result)

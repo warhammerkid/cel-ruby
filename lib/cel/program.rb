@@ -2,10 +2,13 @@
 
 
 module Cel
-  module Program
-    module_function
+  class Program
 
-    def call(ast)
+    def initialize(context)
+      @context = context
+    end
+
+    def evaluate(ast)
       case ast
       when Invoke
         evaluate_invoke(ast)
@@ -13,6 +16,20 @@ module Cel
         evaluate_operation(ast)
       when Literal
         evaluate_literal(ast)
+      when Identifier
+        evaluate_identifier(ast)
+      end
+    end
+
+    alias call evaluate
+
+    private
+
+    def evaluate_identifier(identifier)
+      if Cel::PRIMITIVE_TYPES.include?(identifier.to_s)
+        TYPES[identifier.to_sym]
+      else
+        @context.lookup(identifier)
       end
     end
 
@@ -62,12 +79,14 @@ module Cel
 
       return evaluate_standard_func(func, args) unless var
 
-      var.public_send(func, args)
+      args ?
+      var.public_send(func, *args) :
+      var.public_send(func)
     end
 
     def evaluate_standard_func(func, args)
       case func
-      when "type"
+      when :type
         if Cel::PRIMITIVE_TYPES.include?(args.to_s)
           TYPES[:type]
         else
