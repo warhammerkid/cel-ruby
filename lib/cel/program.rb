@@ -26,7 +26,7 @@ module Cel
     private
 
     def evaluate_identifier(identifier)
-      if Cel::PRIMITIVE_TYPES.include?(identifier.to_s)
+      if Cel::PRIMITIVE_TYPES.include?(identifier.to_sym)
         TYPES[identifier.to_sym]
       else
         @context.lookup(identifier)
@@ -87,12 +87,7 @@ module Cel
     def evaluate_standard_func(func, args)
       case func
       when :type
-        if Cel::PRIMITIVE_TYPES.include?(args.to_s)
-          TYPES[:type]
-        else
-          elem = call(args)
-          elem.type
-        end
+        call(args).type
       else
         raise Error, "#{func} is not supported"
       end

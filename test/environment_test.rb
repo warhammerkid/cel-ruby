@@ -3,6 +3,33 @@
 require_relative "test_helper"
 
 class CelEnvironmentTest < Minitest::Test
+  def test_check_literal_expression
+    assert_equal environment.check("1 == 2"), Cel::TYPES[:bool]
+    assert_equal environment.check("'hello' == 'hello'"), Cel::TYPES[:bool]
+    assert_equal environment.check("'hello' == 'world'"), Cel::TYPES[:bool]
+    assert_equal environment.check("1 == 1 || 1 == 2 || 3 > 4"), Cel::TYPES[:bool]
+    assert_equal environment.check("1 + 2"), Cel::TYPES[:int]
+
+    assert_equal environment.check("[1, 2]"), Cel::TYPES[:list]
+    assert_equal environment.check("{'a': 2}"),  Cel::TYPES[:map]
+
+    assert_equal environment.check("[1, 2][0]"), :any
+    assert_equal environment.check("Struct{a: 2}.a"), Cel::TYPES[:int]
+  end
+
+  def test_check_type_literal
+    assert_equal environment.check("type(1)"), Cel::TYPES[:type]
+    assert_equal environment.check("type('a')"), Cel::TYPES[:type]
+    assert_equal environment.check("type(1) == string"), Cel::TYPES[:bool]
+    assert_equal environment.check("type(type(1)) == type(string)"), Cel::TYPES[:bool]
+  end
+
+  def test_check_var_expression
+    assert_equal environment.check("a + 2"), :any
+    assert_equal environment.check("a == 2"), Cel::TYPES[:bool]
+    assert_equal environment(name: :int).check("a == 2"), Cel::TYPES[:bool]
+  end
+
   def test_evaluate_literal_expression
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
@@ -37,7 +64,7 @@ class CelEnvironmentTest < Minitest::Test
 
   private
 
-  def environment
-    Cel::Environment.new
+  def environment(*args)
+    Cel::Environment.new(*args)
   end
 end

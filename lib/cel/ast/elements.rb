@@ -6,27 +6,6 @@ module Cel
   ADD_OPERATORS = %w[+ -]
   MULTI_OPERATORS = %w[* / %]
 
-  PRIMITIVE_TYPES = %w[int uint double bool string bytes list map null_type type]
-
-  class Type
-    def initialize(type)
-      @type = type
-    end
-
-    def ==(other)
-      super || other == @type
-    end
-
-    def type
-      TYPES[:type]
-    end
-  end
-
-  TYPES = Hash[
-    PRIMITIVE_TYPES.map {|typ| [typ.to_sym, Type.new(typ.to_sym)]}
-  ]
-  TYPES[:type] == Type.new(:type)
-
   class Identifier
     attr_reader :id
 
