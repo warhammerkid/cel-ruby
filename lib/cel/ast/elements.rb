@@ -221,7 +221,7 @@ module Cel
     attr_reader :if, :then, :else
 
     def initialize(if_, then_, else_)
-      @if = cond
+      @if = if_
       @then = then_
       @else = else_
     end

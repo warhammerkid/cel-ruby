@@ -17,6 +17,8 @@ module Cel
         ast.type
       when Identifier
         check_identifier(ast)
+      when Condition
+        check_condition(ast)
       end
     end
 
@@ -133,6 +135,15 @@ module Cel
       return :any unless id_type
 
       identifier.type = id_type
+    end
+
+    def check_condition(condition)
+      then_type = call(condition.then)
+      else_type = call(condition.else)
+
+      return then_type if then_type == else_type
+
+      :any
     end
 
     def infer_dec_type(id)

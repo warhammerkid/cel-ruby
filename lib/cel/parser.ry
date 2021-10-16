@@ -15,7 +15,7 @@ rule
   eof: tEOF
 
 
-  expr: conditional_or "?" conditional_or ":" expr { result = Cel::Condition.new(val[0], val[1], val[2]) }
+  expr: conditional_or "?" conditional_or ":" expr { result = Cel::Condition.new(val[0], val[2], val[4]) }
       | conditional_or
 
   conditional_or: conditional_or tOROP conditional_and { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
@@ -74,7 +74,7 @@ rule
                    | field_inits
 
   field_inits: field_inits ',' tIDENTIFIER ":" expr
-             | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0] => val[2] } }
+             | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0]) => val[2] } }
 
   map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
            | expr ':' expr { result = { val[0] => val[2] } }

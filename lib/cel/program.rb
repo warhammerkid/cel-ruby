@@ -22,6 +22,8 @@ module Cel
         evaluate_literal(ast)
       when Identifier
         evaluate_identifier(ast)
+      when Condition
+        evaluate_condition(ast)
       end
     end
 
@@ -84,6 +86,10 @@ module Cel
       args ?
       call(var).public_send(func, *args) :
       call(var).public_send(func)
+    end
+
+    def evaluate_condition(condition)
+      call(condition.if) ? call(condition.then) : call(condition.else)
     end
 
     def evaluate_standard_func(func, args)

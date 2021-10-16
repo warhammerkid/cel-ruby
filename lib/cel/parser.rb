@@ -543,7 +543,7 @@ Racc_debug_parser = false
 
 module_eval(<<'.,.,', 'parser.ry', 17)
   def _reduce_4(val, _values, result)
-     result = Cel::Condition.new(val[0], val[1], val[2])
+     result = Cel::Condition.new(val[0], val[2], val[4])
     result
   end
 .,.,
@@ -654,7 +654,7 @@ module_eval(<<'.,.,', 'parser.ry', 49)
 
 module_eval(<<'.,.,', 'parser.ry', 50)
   def _reduce_27(val, _values, result)
-     result = Cel::Message.new(val[0], val[2])
+     result = Cel::WithStruct.new(val[0], val[2])
     result
   end
 .,.,

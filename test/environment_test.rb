@@ -30,23 +30,28 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment(name: :int).check("a == 2"), Cel::TYPES[:bool]
   end
 
+  def test_check_condition
+    assert_equal environment.check("true ? 1 : 2"), :int
+    assert_equal environment.check("2 > 3 ? 1 : 'a'"), :any
+  end
+
   def test_evaluate_literal_expression
-    # assert_equal environment.evaluate("1 == 2"), false
-    # assert_equal environment.evaluate("'hello' == 'hello'"), true
-    # assert_equal environment.evaluate("'hello' == 'world'"), false
-    # assert_equal environment.evaluate("1 == 1 || 1 == 2 || 3 > 4"), true
-    # assert_equal environment.evaluate("2 == 1 || 1 == 2 || 3 > 4"), false
-    # assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 < 4"), true
-    # assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 > 4"), false
-    # assert_equal environment.evaluate("!false"), true
+    assert_equal environment.evaluate("1 == 2"), false
+    assert_equal environment.evaluate("'hello' == 'hello'"), true
+    assert_equal environment.evaluate("'hello' == 'world'"), false
+    assert_equal environment.evaluate("1 == 1 || 1 == 2 || 3 > 4"), true
+    assert_equal environment.evaluate("2 == 1 || 1 == 2 || 3 > 4"), false
+    assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 < 4"), true
+    assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 > 4"), false
+    assert_equal environment.evaluate("!false"), true
 
 
-    # assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
-    # assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false
-    # assert_equal environment.evaluate("{'a': 1} == {'a': 1}"), true
-    # assert_equal environment.evaluate("{'a': 2} == {'a': 2}"), true
+    assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
+    assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false
+    assert_equal environment.evaluate("{'a': 1} == {'a': 1}"), true
+    assert_equal environment.evaluate("{'a': 2} == {'a': 2}"), true
 
-    # assert_equal environment.evaluate("[1, 2][0]"), 1
+    assert_equal environment.evaluate("[1, 2][0]"), 1
     assert_equal environment.evaluate("Struct{a: 2}.a"), 2
   end
 
@@ -61,6 +66,14 @@ class CelEnvironmentTest < Minitest::Test
     assert_raises(Cel::Error) { environment.evaluate("a == 2") }
     assert_equal environment.evaluate("a == 2", {a: 1}), false
   end
+
+  def test_evaluate_condition
+    # assert_equal environment.evaluate("true ? 1 : 2"), 1
+    assert_equal environment.evaluate("2 < 3 ? 1 : 'a'"), 1
+    assert_equal environment.evaluate("2 > 3 ? 1 : 'a'"), 'a'
+    assert_equal environment.evaluate("2 < 3 ? (2 + 3) : 'a'"), 5
+  end
+
 
   def test_check_the_mothership
     assert_equal(
