@@ -654,7 +654,7 @@ module_eval(<<'.,.,', 'parser.ry', 49)
 
 module_eval(<<'.,.,', 'parser.ry', 50)
   def _reduce_27(val, _values, result)
-     result = Cel::WithStruct.new(val[0], val[2])
+     result = Cel::Message.new(val[0], val[2])
     result
   end
 .,.,

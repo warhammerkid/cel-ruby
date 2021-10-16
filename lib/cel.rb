@@ -48,7 +48,7 @@ module Cel
     end
 
     def get(attrib)
-      _, value = @type_map.find { |k, _| k == attrib }
+      _, value = @type_map.find { |k, _| k == attrib.to_s }
       value
     end
   end

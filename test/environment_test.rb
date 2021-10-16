@@ -53,6 +53,8 @@ class CelEnvironmentTest < Minitest::Test
 
     assert_equal environment.evaluate("[1, 2][0]"), 1
     assert_equal environment.evaluate("Struct{a: 2}.a"), 2
+    assert_equal environment.evaluate("{\"a\": 2}.a"), 2
+    assert_equal environment.evaluate("{\"a\": 2}[\"a\"]"), 2
   end
 
   def test_evaluate_type_literal

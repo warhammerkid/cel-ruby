@@ -131,7 +131,7 @@ module Cel
     end
 
     def method_missing(meth, *args)
-      key = @value.keys.find { |k| k == meth } or return super
+      key = @value.keys.find { |k| k == meth.to_s } or return super
 
       @value[key]
     end

@@ -48,7 +48,7 @@ rule
         | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
         | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: val[4]) }
         | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
-        | member '{' maybe_field_inits '}' { result = Cel::WithStruct.new(val[0], val[2]) }
+        | member '{' maybe_field_inits '}' { result = Cel::Message.new(val[0], val[2]) }
 
 
   primary:  identifier { result = Cel::Identifier.new(val[0]) }

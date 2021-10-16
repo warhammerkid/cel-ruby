@@ -97,9 +97,11 @@ module Cel
 
       case var.type
       when MapType
-        attribute = var.type.get(func)
-
-        unsupported_operation("#{var}.#{func}") unless attribute
+        # A field selection expression, e.f, can be applied both to messages and
+        # to maps. For maps, selection is interpreted as the field being a string key.
+        attrib = func == :[] ? args : func
+        attribute = var.type.get(attrib)
+        unsupported_operation("#{var}.#{attrib}") unless attribute
 
         call(attribute)
       when ListType
