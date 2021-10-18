@@ -29,5 +29,9 @@ module Cel
         raise Error, "#{invoke} is not supported"
       end
     end
+
+    def size(literal)
+      literal.size
+    end
   end
 end

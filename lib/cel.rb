@@ -40,6 +40,7 @@ module Cel
   class ListType < Type
     def initialize(type_list)
       @type_list = type_list
+      super(:list)
     end
 
     def get(idx)
@@ -50,6 +51,7 @@ module Cel
   class MapType < Type
     def initialize(type_map)
       @type_map = type_map
+      super(:map)
     end
 
     def get(attrib)

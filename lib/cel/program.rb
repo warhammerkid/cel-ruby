@@ -114,10 +114,10 @@ module Cel
     def evaluate_standard_func(func, args)
       case func
       when :type
-        call(args).type
+        call(args.first).type
       # MACROS
-      when :has
-        Macro.__send__(func, *args)
+      when :has, :size
+        Macro.__send__(func, args.first)
       else
         raise Error, "#{func} is not supported"
       end

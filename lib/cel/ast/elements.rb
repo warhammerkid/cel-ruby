@@ -116,7 +116,7 @@ module Cel
 
   class Bytes < Literal
     def initialize(value)
-      super(:bytes, value.force_encoding(Encoding::BINARY))
+      super(:bytes, value)
     end
   end
 

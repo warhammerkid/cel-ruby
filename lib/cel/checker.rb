@@ -67,19 +67,19 @@ module Cel
         when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
           TYPES[:bool]
         when "+"
-          verify_all_match_type?(op, ADD_EXPECTED_TYPES, values)
+          verify_all_match_type?(ADD_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
 
           values.first
         when "-"
-          verify_all_match_type?(op, SUB_EXPECTED_TYPES, values)
+          verify_all_match_type?(SUB_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
 
           values.first
         when "*", "/"
-          verify_all_match_type?(op, MULTIDIV_EXPECTED_TYPES, values)
+          verify_all_match_type?(MULTIDIV_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
 
           values.first
         when "%"
-          verify_all_match_type?(op, REMAINDER_EXPECTED_TYPES, values)
+          verify_all_match_type?(REMAINDER_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
 
           values.first
         else
@@ -93,7 +93,7 @@ module Cel
       func = funcall.func
       args = funcall.args
 
-      return check_standard_func(func, args) unless var
+      return check_standard_func(funcall) unless var
 
       case var.type
       when MapType
@@ -116,7 +116,10 @@ module Cel
       end
     end
 
-    def check_standard_func(func, args)
+    def check_standard_func(funcall)
+      func = funcall.func
+      args = funcall.args
+
       case func
       when :type
         check_arity(func, args, 1)
@@ -124,13 +127,16 @@ module Cel
       # MACROS
       when :has
         check_arity(func, args, 1)
-        unless args.is_a?(Invoke)
-          raise unsupported_operation("#{args})")
+        unless args.first.is_a?(Invoke)
+          raise unsupported_operation(funcall)
         end
 
         TYPES[:bool]
+      when :size
+        check_arity(func, args, 1)
+        verify_all_match_type?(%i[string bytes list map], call(args.first)) || unsupported_operation(funcall)
       else
-        raise Error, "#{func} is not supported"
+        unsupported_operation(funcall)
       end
     end
 
@@ -181,16 +187,20 @@ module Cel
     end
 
 
-    def verify_all_match_type?(op, expected, values)
+    def verify_all_match_type?(expected, types)
       # at least an expected type must match all values
-      return if expected.any? { |expected_type|
-        values.all? { |type| type == expected_type } }
-
-      raise unsupported_operation(values.join(" #{op} "))
+      expected.any? do |expected_type|
+        case types
+        when Array
+          types.all? { |type| type == expected_type }
+        else
+          types == expected_type
+        end
+      end
     end
 
     def check_arity(func, args, arity)
-      return if Array(args).size == arity
+      return if args.size == arity
 
       raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end

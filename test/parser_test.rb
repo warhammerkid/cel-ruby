@@ -43,7 +43,7 @@ class CelParserTest < Minitest::Test
   end
 
   def test_funcall
-    assert_equal parser.parse("type(1)"), [:type, 1]
+    assert_equal parser.parse("type(1)"), [:type, [1]]
   end
 
   private

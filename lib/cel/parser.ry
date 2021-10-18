@@ -46,13 +46,13 @@ rule
 
   member: primary
         | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
-        | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: val[4]) }
+        | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: [val[4]]) }
         | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
         | member '{' maybe_field_inits '}' { result = Cel::Message.new(val[0], val[2]) }
 
 
   primary:  identifier { result = Cel::Identifier.new(val[0]) }
-         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: val[2]) }
+         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: [val[2]]) }
          | '(' expr ')' { result = Cel::Group.new(val[1]) }
          | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
          | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }

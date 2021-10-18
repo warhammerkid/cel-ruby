@@ -76,11 +76,19 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("2 < 3 ? (2 + 3) : 'a'"), 5
   end
 
-  def test_evaluate_macros
+  def test_evaluate_macros_has
     assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.a)"), true
     assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struct{a: 1, b: 2}.c)") }
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
+  end
+
+  def test_evaluate_macros_size
+    assert_equal environment.evaluate("size(\"helloworld\")"), 10
+    assert_equal environment.evaluate("size(b\"\303\277\")"), 2
+    assert_equal environment.evaluate("size([1, 2, 3])"), 3
+    assert_equal environment.evaluate("size(['ab', 'cd', 'de'])"), 3
+    assert_equal environment.evaluate("size({'a': 1, 'b': 2, 'cd': 3})"), 3
   end
 
 
