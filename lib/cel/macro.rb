@@ -17,14 +17,15 @@ module Cel
       when Message
         # If e evaluates to a message and f is not a declared field for the message,
         # has(e.f) raises a no_such_field error.
-        Bool.new(var.respond_to?(func))
+        raise NoSuchFieldError.new(var, func) unless var.field?(func)
 
+        Bool.new(var.public_send(func) != nil)
       when Map
         # If e evaluates to a map, then has(e.f) indicates whether the string f
         # is a key in the map (note that f must syntactically be an identifier).
         Bool.new(var.respond_to?(func))
       else
-
+        # In all other cases, has(e.f) evaluates to an error.
         raise Error, "#{invoke} is not supported"
       end
     end

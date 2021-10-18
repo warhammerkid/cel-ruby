@@ -1,5 +1,4 @@
 require "delegate"
-require "ostruct"
 
 module Cel
   LOGICAL_OPERATORS =  %w[< <= >= > == != in]
@@ -27,9 +26,13 @@ module Cel
 
     def initialize(type, struct)
       check(struct)
-      @struct = OpenStruct.new(struct)
+      @struct = Struct.new(*struct.keys.map(&:to_sym)).new(*struct.values)
       @type = type.is_a?(Type) ? type : MapType.new(struct)
       super(@struct)
+    end
+
+    def field?(key)
+      !@type.get(key).nil?
     end
 
     private
@@ -57,6 +60,18 @@ module Cel
         other.respond_to?(:to_ary) &&
         [@var, @func, @args].compact == other
       )
+    end
+
+    def to_s
+      if var
+        if func == :[]
+          "#{var}[#{"(#{Array(args).join(', ')})" if args}"
+        else
+          "#{var}.#{func}#{"(#{Array(args).join(', ')})" if args}"
+        end
+      else
+        "#{func}#{"(#{Array(args).join(', ')})" if args}"
+      end
     end
   end
 
@@ -101,7 +116,7 @@ module Cel
 
   class Bytes < Literal
     def initialize(value)
-      super(:bytes, value)
+      super(:bytes, value.force_encoding(Encoding::BINARY))
     end
   end
 
@@ -131,11 +146,11 @@ module Cel
     end
 
     def respond_to_missing?(meth, *args)
-      super || @value.keys.any? { |k| k == meth.to_s }
+      super || @value.keys.any? { |k| k.to_s == meth.to_s }
     end
 
     def method_missing(meth, *args)
-      key = @value.keys.find { |k| k == meth.to_s } or return super
+      key = @value.keys.find { |k| k.to_s == meth.to_s } or return super
 
       @value[key]
     end

@@ -78,7 +78,7 @@ class CelEnvironmentTest < Minitest::Test
 
   def test_evaluate_macros
     assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.a)"), true
-    assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.c)"), false
+    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struct{a: 1, b: 2}.c)") }
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
   end
@@ -115,24 +115,24 @@ class CelEnvironmentTest < Minitest::Test
       )
 
     assert_equal program.evaluate(
-      account: account_type.new(100, false, 10),
-      transaction: transaction_type.new(10)
+      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
+      transaction: Cel::Map.new(withdrawal: 10)
     ), true
     assert_equal program.evaluate(
-      account: account_type.new(100, false, 10),
-      transaction: transaction_type.new(100)
+      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
+      transaction: Cel::Map.new(withdrawal: 100)
     ), true
     assert_equal program.evaluate(
-      account: account_type.new(100, false, 10),
-      transaction: transaction_type.new(101)
+      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
+      transaction: Cel::Map.new(withdrawal: 101)
     ), false
     assert_equal program.evaluate(
-      account: account_type.new(100, true, 10),
-      transaction: transaction_type.new(110)
+      account: Cel::Map.new(balance: 100, overdraftProtection: true, overdraftLimit: 10),
+      transaction: Cel::Map.new(withdrawal: 110)
     ), true
     assert_equal program.evaluate(
-      account: account_type.new(100, true, 10),
-      transaction: transaction_type.new(111)
+      account: Cel::Map.new(balance: 100, overdraftProtection: true, overdraftLimit: 10),
+      transaction: Cel::Map.new(withdrawal: 111)
     ), false
   #     assert_equal(
   #       environment.check(<<-EXPR

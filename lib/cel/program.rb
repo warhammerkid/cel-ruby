@@ -76,16 +76,35 @@ module Cel
       end
     end
 
-    def evaluate_invoke(funcall)
-      var = funcall.var
-      func = funcall.func
-      args = funcall.args
+    def evaluate_invoke(invoke)
+      var = invoke.var
+      func = invoke.func
+      args = invoke.args
 
       return evaluate_standard_func(func, args) unless var
 
-      args ?
-      call(var).public_send(func, *args) :
-      call(var).public_send(func)
+      if Identifier === var
+        var = evaluate_identifier(var)
+      end
+
+      case var
+      when Message
+        # If e evaluates to a message and f is not declared in this message, the
+        # runtime error no_such_field is raised.
+        raise NoSuchFieldError.new(var, func) unless var.field?(func)
+
+        var.public_send(func)
+      when Map, List
+        # If e evaluates to a map, then e.f is equivalent to e['f'] (where f is
+        # still being used as a meta-variable, e.g. the expression x.foo is equivalent
+        # to the expression x['foo'] when x evaluates to a map).
+
+        args ?
+        var.public_send(func, *args) :
+        var.public_send(func)
+      else
+        raise Error, "#{invoke} is not supported"
+      end
     end
 
     def evaluate_condition(condition)
