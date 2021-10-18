@@ -3,6 +3,7 @@
 require "cel/version"
 
 require "cel/parser"
+require "cel/macro"
 require "cel/context"
 require "cel/checker"
 require "cel/program"

@@ -130,6 +130,10 @@ module Cel
       )
     end
 
+    def respond_to_missing?(meth, *args)
+      super || @value.keys.any? { |k| k == meth.to_s }
+    end
+
     def method_missing(meth, *args)
       key = @value.keys.find { |k| k == meth.to_s } or return super
 

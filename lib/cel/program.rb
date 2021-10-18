@@ -96,6 +96,9 @@ module Cel
       case func
       when :type
         call(args).type
+      # MACROS
+      when :has
+        Macro.__send__(func, *args)
       else
         raise Error, "#{func} is not supported"
       end

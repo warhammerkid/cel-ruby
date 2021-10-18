@@ -119,7 +119,16 @@ module Cel
     def check_standard_func(func, args)
       case func
       when :type
+        check_arity(func, args, 1)
         TYPES[:type]
+      # MACROS
+      when :has
+        check_arity(func, args, 1)
+        unless args.is_a?(Invoke)
+          raise unsupported_operation("#{args})")
+        end
+
+        TYPES[:bool]
       else
         raise Error, "#{func} is not supported"
       end
@@ -178,6 +187,12 @@ module Cel
         values.all? { |type| type == expected_type } }
 
       raise unsupported_operation(values.join(" #{op} "))
+    end
+
+    def check_arity(func, args, arity)
+      return if Array(args).size == arity
+
+      raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end
 
     def unsupported_type(op, type)

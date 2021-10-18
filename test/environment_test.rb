@@ -76,6 +76,13 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("2 < 3 ? (2 + 3) : 'a'"), 5
   end
 
+  def test_evaluate_macros
+    assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.a)"), true
+    assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.c)"), false
+    assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
+    assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
+  end
+
 
   def test_check_the_mothership
     assert_equal(
