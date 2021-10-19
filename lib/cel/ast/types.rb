@@ -15,6 +15,23 @@ module Cel
     def type
       TYPES[:type]
     end
+
+    def cast(value)
+      case @type
+      when :int
+        Number.new(:int, Integer(value))
+      when :uint
+        Number.new(:uint, Integer(value).abs)
+      when :double
+        Number.new(:double, Float(value))
+      when :string
+        String.new(String(value))
+      when :bytes
+        Bytes.new(value.bytes)
+      else
+        raise Error, "unsupported cast operation to #{@type}"
+      end
+    end
   end
 
   class ListType < Type

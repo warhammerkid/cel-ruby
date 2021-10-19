@@ -118,6 +118,9 @@ module Cel
       # MACROS
       when :has, :size
         Macro.__send__(func, args.first)
+      when :int, :uint, :string, :double, :bytes # :duration, :timestamp
+        type = TYPES[func]
+        type.cast(args.first)
       else
         raise Error, "#{func} is not supported"
       end

@@ -91,6 +91,13 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("size({'a': 1, 'b': 2, 'cd': 3})"), 3
   end
 
+  def test_evaluate_macros_cast
+    assert_equal environment.evaluate("int(\"1\")"), 1
+    assert_equal environment.evaluate("uint(1)"), 1
+    assert_equal environment.evaluate("double(1)"), 1.0
+    assert_equal environment.evaluate("string(1)"), "1"
+    assert_equal environment.evaluate("bytes('a')"), [97]
+  end
 
   def test_check_the_mothership
     assert_equal(

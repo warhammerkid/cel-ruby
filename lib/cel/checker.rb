@@ -65,26 +65,28 @@ module Cel
 
         case op
         when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
-          TYPES[:bool]
+          return TYPES[:bool]
         when "+"
-          verify_all_match_type?(ADD_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
-
-          values.first
+          if (type = find_match_all_types(ADD_EXPECTED_TYPES, values))
+            return type
+          end
         when "-"
-          verify_all_match_type?(SUB_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
-
-          values.first
+          if (type = find_match_all_types(SUB_EXPECTED_TYPES, values))
+            return type
+          end
         when "*", "/"
-          verify_all_match_type?(MULTIDIV_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
-
-          values.first
+          if (type = find_match_all_types(MULTIDIV_EXPECTED_TYPES, values))
+            return type
+          end
         when "%"
-          verify_all_match_type?(REMAINDER_EXPECTED_TYPES, values) || unsupported_operation(values.join(" #{op} "))
-
-          values.first
+          if (type = find_match_all_types(REMAINDER_EXPECTED_TYPES, values))
+            return type
+          end
         else
           unsupported_operation(values.join(" #{op} "))
         end
+
+        unsupported_operation(values.join(" #{op} "))
       end
     end
 
@@ -116,6 +118,14 @@ module Cel
       end
     end
 
+    CAST_ALLOWED_TYPES = {
+      int: %i[uint double string], # TODO: enum, timestamp
+      uint: %i[int double string],
+      string: %i[int uint double bytes], # TODO: timestamp, duration
+      double: %i[int uint string],
+      bytes: %i[string],
+    }
+
     def check_standard_func(funcall)
       func = funcall.func
       args = funcall.args
@@ -123,7 +133,7 @@ module Cel
       case func
       when :type
         check_arity(func, args, 1)
-        TYPES[:type]
+        return TYPES[:type]
       # MACROS
       when :has
         check_arity(func, args, 1)
@@ -131,13 +141,24 @@ module Cel
           raise unsupported_operation(funcall)
         end
 
-        TYPES[:bool]
+        return TYPES[:bool]
       when :size
         check_arity(func, args, 1)
-        verify_all_match_type?(%i[string bytes list map], call(args.first)) || unsupported_operation(funcall)
+        if (type = find_match_all_types(%i[string bytes list map], call(args.first)))
+          return type
+        end
+      when :int, :uint, :string, :double, :bytes # :duration, :timestamp
+        check_arity(func, args, 1)
+        allowed_types = CAST_ALLOWED_TYPES[func]
+
+        if (type = find_match_all_types(allowed_types, call(args.first)))
+          return type
+        end
       else
         unsupported_operation(funcall)
       end
+
+      unsupported_operation(funcall)
     end
 
     def check_identifier(identifier)
@@ -187,9 +208,9 @@ module Cel
     end
 
 
-    def verify_all_match_type?(expected, types)
+    def find_match_all_types(expected, types)
       # at least an expected type must match all values
-      expected.any? do |expected_type|
+      type = expected.find do |expected_type|
         case types
         when Array
           types.all? { |type| type == expected_type }
@@ -197,6 +218,8 @@ module Cel
           types == expected_type
         end
       end
+
+      TYPES[type]
     end
 
     def check_arity(func, args, arity)

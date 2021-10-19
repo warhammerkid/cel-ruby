@@ -33,7 +33,7 @@ loop package namespace return
 var void while
 ]
 
-RESERVED_REGEX = Regexp.union(*RESERVED)
+IDENTIFIER_REGEX = /[a-zA-Z][_a-zA-Z0-9]*/
 
 STRING_LIT_REGEX = Regexp.union(
   /"""(?~""")*"""/,
@@ -98,10 +98,13 @@ def tokenize(str)
       else
         [:tSTRING, convert_to_string(str)]
       end
-    when scanner.scan(RESERVED_REGEX)
-      @q << [:tRESERVED, scanner.matched]
-    when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
-      @q << [:tIDENTIFIER, scanner.matched]
+    when scanner.scan(IDENTIFIER_REGEX)
+      word = scanner.matched
+      if RESERVED.include?(word)
+        @q << [:tRESERVED, scanner.matched]
+      else
+        @q << [:tIDENTIFIER, scanner.matched]
+      end
     when scanner.scan(OPERATORS_RE)
       @q << [OPERATORS[scanner.matched], scanner.matched]
     when scanner.scan(/\A.|\n/o)
