@@ -33,5 +33,10 @@ module Cel
     def size(literal)
       literal.size
     end
+
+    def matches(string, pattern)
+      pattern = Regexp.new(pattern)
+      Bool.new(pattern.match?(string))
+    end
   end
 end

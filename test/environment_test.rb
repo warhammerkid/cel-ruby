@@ -83,7 +83,7 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
   end
 
-  def test_evaluate_macros_size
+  def test_evaluate_func_size
     assert_equal environment.evaluate("size(\"helloworld\")"), 10
     assert_equal environment.evaluate("size(b\"\303\277\")"), 2
     assert_equal environment.evaluate("size([1, 2, 3])"), 3
@@ -91,12 +91,32 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("size({'a': 1, 'b': 2, 'cd': 3})"), 3
   end
 
-  def test_evaluate_macros_cast
+  def test_evaluate_func_cast
     assert_equal environment.evaluate("int(\"1\")"), 1
     assert_equal environment.evaluate("uint(1)"), 1
     assert_equal environment.evaluate("double(1)"), 1.0
     assert_equal environment.evaluate("string(1)"), "1"
     assert_equal environment.evaluate("bytes('a')"), [97]
+  end
+
+  def test_evaluate_func_matches
+    assert_equal environment.evaluate("matches('helloworld', 'lowo')"), true
+    assert_equal environment.evaluate("matches('helloworld', '[a-z]+')"), true
+    assert_equal environment.evaluate("matches('helloworld', 'fuzz')"), false
+    assert_equal environment.evaluate("matches('helloworld', '[0-9]+')"), false
+  end
+
+  def test_evaluate_func_string
+    assert_equal environment.evaluate("'helloworld'.contains('hello')"), true
+    assert_equal environment.evaluate("'helloworld'.contains('fuzz')"), false
+    assert_equal environment.evaluate("'helloworld'.endsWith('world')"), true
+    assert_equal environment.evaluate("'helloworld'.endsWith('hello')"), false
+    assert_equal environment.evaluate("'helloworld'.startsWith('hello')"), true
+    assert_equal environment.evaluate("'helloworld'.startsWith('world')"), false
+    assert_equal environment.evaluate("'helloworld'.matches('lowo')"), true
+    assert_equal environment.evaluate("'helloworld'.matches('[a-z]+')"), true
+    assert_equal environment.evaluate("'helloworld'.matches('fuzz')"), false
+    assert_equal environment.evaluate("'helloworld'.matches('[0-9]+')"), false
   end
 
   def test_check_the_mothership

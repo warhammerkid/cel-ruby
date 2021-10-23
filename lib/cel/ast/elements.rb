@@ -65,12 +65,12 @@ module Cel
     def to_s
       if var
         if func == :[]
-          "#{var}[#{"(#{Array(args).join(', ')})" if args}"
+          "#{var}[#{"(#{args.map(&:inspect).join(', ')})" if args}"
         else
-          "#{var}.#{func}#{"(#{Array(args).join(', ')})" if args}"
+          "#{var}.#{func}#{"(#{args.map(&:inspect).join(', ')})" if args}"
         end
       else
-        "#{func}#{"(#{Array(args).join(', ')})" if args}"
+        "#{func}#{"(#{args.map(&:inspect).join(', ')})" if args}"
       end
     end
   end
@@ -112,11 +112,33 @@ module Cel
     def initialize(value)
       super(:string, value)
     end
+
+    # CEL string functions
+
+    def contains(string)
+      Bool.new(@value.include?(string))
+    end
+
+    def endsWith(string)
+      Bool.new(@value.end_with?(string))
+    end
+
+    def startsWith(string)
+      Bool.new(@value.start_with?(string))
+    end
+
+    def matches(pattern)
+      Macro.matches(self, pattern)
+    end
   end
 
   class Bytes < Literal
     def initialize(value)
       super(:bytes, value)
+    end
+
+    def to_ary
+      [self]
     end
   end
 
@@ -131,6 +153,10 @@ module Cel
         @value.zip(other).all?{|x1, x2| x1 == x2 }
       )
     end
+
+    def to_ary
+      [self]
+    end
   end
 
   class Map < Literal
@@ -143,6 +169,10 @@ module Cel
         other.respond_to?(:to_hash) &&
         @value.zip(other).all?{|(x1, y1), (x2, y2)| x1 == x2 && y1 == y2 }
       )
+    end
+
+    def to_ary
+      [self]
     end
 
     def respond_to_missing?(meth, *args)

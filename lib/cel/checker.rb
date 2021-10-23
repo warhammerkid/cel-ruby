@@ -154,6 +154,11 @@ module Cel
         if (type = find_match_all_types(allowed_types, call(args.first)))
           return type
         end
+      when :matches
+        check_arity(func, args, 2)
+        if (type = find_match_all_types(%i[string], args.map(&method(:call))))
+          return type
+        end
       else
         unsupported_operation(funcall)
       end

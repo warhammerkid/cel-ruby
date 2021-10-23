@@ -88,6 +88,10 @@ module Cel
       end
 
       case var
+      when String
+        raise Error, "#{invoke} is not supported" unless String.method_defined?(func, false)
+
+        var.public_send(func, *args)
       when Message
         # If e evaluates to a message and f is not declared in this message, the
         # runtime error no_such_field is raised.
@@ -117,7 +121,9 @@ module Cel
         call(args.first).type
       # MACROS
       when :has, :size
-        Macro.__send__(func, args.first)
+        Macro.__send__(func, *args)
+      when :matches
+        Macro.__send__(func, *args.map(&method(:call)))
       when :int, :uint, :string, :double, :bytes # :duration, :timestamp
         type = TYPES[func]
         type.cast(args.first)
