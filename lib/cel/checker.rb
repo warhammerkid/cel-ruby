@@ -113,6 +113,23 @@ module Cel
         else
           unsupported_operation("#{var}.#{func}")
         end
+      when TYPES[:string]
+        case func
+        when :contains, :endsWith, :startsWith
+          check_arity("#{var}.#{func}", args, 1)
+          if find_match_all_types(%i[string], call(args.first))
+            return TYPES[:bool]
+          end
+        when :matches
+          check_arity("#{var}.#{func}", args, 1)
+          # TODO: verify if string can be transformed into a regex
+          if find_match_all_types(%i[string], call(args.first))
+            return TYPES[:bool]
+          end
+        else
+          unsupported_operation("#{var}.#{func}")
+        end
+        unsupported_operation("#{var}.#{func}")
       else
         :any
       end
@@ -144,20 +161,24 @@ module Cel
         return TYPES[:bool]
       when :size
         check_arity(func, args, 1)
-        if (type = find_match_all_types(%i[string bytes list map], call(args.first)))
-          return type
+        if find_match_all_types(%i[string bytes list map], call(args.first))
+          return TYPES[:int]
         end
       when :int, :uint, :string, :double, :bytes # :duration, :timestamp
         check_arity(func, args, 1)
         allowed_types = CAST_ALLOWED_TYPES[func]
 
-        if (type = find_match_all_types(allowed_types, call(args.first)))
-          return type
+        if find_match_all_types(allowed_types, call(args.first))
+          if func == :bytes
+            return TYPES[:list]
+          else
+            return TYPES[func]
+          end
         end
       when :matches
         check_arity(func, args, 2)
-        if (type = find_match_all_types(%i[string], args.map(&method(:call))))
-          return type
+        if find_match_all_types(%i[string], args.map(&method(:call)))
+          return TYPES[:bool]
         end
       else
         unsupported_operation(funcall)

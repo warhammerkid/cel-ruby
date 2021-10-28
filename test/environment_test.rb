@@ -35,6 +35,27 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.check("2 > 3 ? 1 : 'a'"), :any
   end
 
+  def test_check_func_cast
+    assert_equal environment.check("int(\"1\")"), :int
+    assert_equal environment.check("uint(1)"), :uint
+    assert_equal environment.check("double(1)"), :double
+    assert_equal environment.check("string(1)"), :string
+    assert_equal environment.check("bytes('a')"), :list
+  end
+
+  def test_check_func_string
+    assert_equal environment.check("'helloworld'.contains('fuzz')"), :bool
+    assert_equal environment.check("'helloworld'.endsWith('world')"), :bool
+    assert_equal environment.check("'helloworld'.startsWith('world')"), :bool
+    assert_equal environment.check("'helloworld'.matches('lowo')"), :bool
+  end
+
+  def test_check_funcs
+    assert_equal environment.check("size(\"helloworld\")"), :int
+    assert_equal environment.check("matches('helloworld', 'lowo')"), :bool
+    assert_equal environment.check("1 in [1, 2, 3]"), :bool
+  end
+
   def test_evaluate_literal_expression
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
