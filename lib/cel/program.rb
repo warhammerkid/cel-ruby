@@ -66,10 +66,12 @@ module Cel
         # unary operations
         values.first.__send__(:"#{op}@")
       elsif op == "&&"
-        return values.all? { |x| x == true }
-
+        values.all? { |x| x == true }
       elsif op == "||"
-        return values.any? { |x| x == true }
+        values.any? { |x| x == true }
+      elsif op == "in"
+        element, collection = values
+        collection.include?(element)
       else
         op_value, *values = values
         op_value.public_send(op, *values)

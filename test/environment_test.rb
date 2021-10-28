@@ -127,6 +127,13 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("matches('helloworld', '[0-9]+')"), false
   end
 
+  def test_evaluate_func_in
+    assert_equal environment.evaluate("1 in [1, 2, 3]"), true
+    assert_equal environment.evaluate("1 in [2, 3, 4]"), false
+    assert_equal environment.evaluate("'a' in {'a': 1, 'b': 2, 'cd': 3}"), true
+    assert_equal environment.evaluate("'c' in {'a': 1, 'b': 2, 'cd': 3}"), false
+  end
+
   def test_evaluate_func_string
     assert_equal environment.evaluate("'helloworld'.contains('hello')"), true
     assert_equal environment.evaluate("'helloworld'.contains('fuzz')"), false

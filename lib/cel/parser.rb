@@ -26,7 +26,6 @@ OPERATORS = {
 OPERATORS_RE = Regexp.union(*OPERATORS.keys)
 
 RESERVED = %W[
- in
 as break const continue else
 for function if import let
 loop package namespace return
@@ -102,6 +101,8 @@ def tokenize(str)
       word = scanner.matched
       if RESERVED.include?(word)
         @q << [:tRESERVED, scanner.matched]
+      elsif word == "in"
+        @q << [OPERATORS[scanner.matched], scanner.matched]
       else
         @q << [:tIDENTIFIER, scanner.matched]
       end

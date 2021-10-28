@@ -66,6 +66,10 @@ module Cel
         case op
         when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
           return TYPES[:bool]
+        when "in"
+          if find_match_all_types(%i[list map], values.last)
+            return TYPES[:bool]
+          end
         when "+"
           if (type = find_match_all_types(ADD_EXPECTED_TYPES, values))
             return type
