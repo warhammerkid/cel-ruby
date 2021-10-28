@@ -34,6 +34,12 @@ module Cel
     REMAINDER_EXPECTED_TYPES = %i[int uint]
 
     def check_operation(operation)
+      type = infer_operation_type(operation)
+      operation.type = type
+      type
+    end
+
+    def infer_operation_type(operation)
       op = operation.op
 
       values = operation.operands.map do |operand|
@@ -105,33 +111,68 @@ module Cel
       when MapType
         # A field selection expression, e.f, can be applied both to messages and
         # to maps. For maps, selection is interpreted as the field being a string key.
-        attrib = func == :[] ? args : func
-        attribute = var.type.get(attrib)
-        unsupported_operation("#{var}.#{attrib}") unless attribute
+        case func
+        when :[]
+          attribute = var.type.get(args)
+          unsupported_operation(funcall) unless attribute
+        when :all, :exists, :exists_one
+          check_arity(funcall, args, 2)
+          identifier, predicate = args
+
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+
+          return TYPES[:bool]
+        else
+          attribute = var.type.get(func)
+          unsupported_operation(funcall) unless attribute
+        end
 
         call(attribute)
       when ListType
         case func
         when :[]
-          call(var.type.get(args))
+          attribute = var.type.get(args)
+          unsupported_operation(funcall) unless attribute
+          call(attribute)
+        when :all, :exists, :exists_one
+          check_arity(funcall, args, 2)
+          identifier, predicate = args
+
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+
+          return TYPES[:bool]
+        when :filter
+          check_arity(funcall, args, 2)
+          identifier, predicate = args
+
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+
+          return TYPES[:list]
+        when :map
+          check_arity(funcall, args, 2)
+          identifier, predicate = args
+
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+
+          return TYPES[:list]
         else
-          unsupported_operation("#{var}.#{func}")
+          unsupported_operation(funcall)
         end
       when TYPES[:string]
         case func
         when :contains, :endsWith, :startsWith
-          check_arity("#{var}.#{func}", args, 1)
+          check_arity(funcall, args, 1)
           if find_match_all_types(%i[string], call(args.first))
             return TYPES[:bool]
           end
         when :matches
-          check_arity("#{var}.#{func}", args, 1)
+          check_arity(funcall, args, 1)
           # TODO: verify if string can be transformed into a regex
           if find_match_all_types(%i[string], call(args.first))
             return TYPES[:bool]
           end
         else
-          unsupported_operation("#{var}.#{func}")
+          unsupported_operation(funcall)
         end
         unsupported_operation("#{var}.#{func}")
       else
@@ -155,7 +196,6 @@ module Cel
       when :type
         check_arity(func, args, 1)
         return TYPES[:type]
-      # MACROS
       when :has
         check_arity(func, args, 1)
         unless args.first.is_a?(Invoke)

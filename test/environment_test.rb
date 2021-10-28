@@ -56,6 +56,17 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.check("1 in [1, 2, 3]"), :bool
   end
 
+  def test_check_macros_map_filter
+    assert_equal environment.check("[1, 2, 3].all(e, e > 0)"), :bool
+    assert_equal environment.check("[1, 2, 3].exists(e, e < 0)"), :bool
+    assert_equal environment.check("[1, 2, 3].exists_one(e, e < 0)"), :bool
+    assert_equal environment.check("[1, 2, 3].filter(e, e < 0)"), :list
+    assert_equal environment.check("[1, 2, 3].map(e, e + 1)"), :list
+    assert_equal environment.check("{'a': 1, 'b': 2}.all(e, e.matches('a'))"), :bool
+    assert_equal environment.check("{'a': 1, 'b': 2}.exists(e, e.matches('a'))"), :bool
+    assert_equal environment.check("{'a': 1, 'b': 2}.exists_one(e, e.matches('a'))"), :bool
+  end
+
   def test_evaluate_literal_expression
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
@@ -87,11 +98,11 @@ class CelEnvironmentTest < Minitest::Test
 
   def test_evaluate_var_expression
     assert_raises(Cel::Error) { environment.evaluate("a == 2") }
-    assert_equal environment.evaluate("a == 2", {a: 1}), false
+    assert_equal environment.evaluate("a == 2", {a: Cel::Number.new(:int, 1)}), false
   end
 
   def test_evaluate_condition
-    # assert_equal environment.evaluate("true ? 1 : 2"), 1
+    assert_equal environment.evaluate("true ? 1 : 2"), 1
     assert_equal environment.evaluate("2 < 3 ? 1 : 'a'"), 1
     assert_equal environment.evaluate("2 > 3 ? 1 : 'a'"), 'a'
     assert_equal environment.evaluate("2 < 3 ? (2 + 3) : 'a'"), 5
@@ -102,6 +113,19 @@ class CelEnvironmentTest < Minitest::Test
     assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struct{a: 1, b: 2}.c)") }
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
+  end
+
+
+  def test_evaluate_macros_map_filter
+    assert_equal environment.evaluate("[1, 2, 3].all(e, e > 0)"), true
+    assert_equal environment.evaluate("[1, 2, 3].all(e, e < 0)"), false
+    assert_equal environment.evaluate("[1, 2, 3].exists(e, e < 3)"), true
+    assert_equal environment.evaluate("[1, 2, 3].exists_one(e, e < 3)"), false
+    assert_equal environment.evaluate("[1, 2, 3].filter(e, e < 2)"), [1]
+    assert_equal environment.evaluate("[1, 2, 3].map(e, e + 1)"), [2, 3, 4]
+    assert_equal environment.evaluate("{'a': 1, 'b': 2}.all(e, e.matches('a'))"), false
+    assert_equal environment.evaluate("{'a': 1, 'b': 2}.exists(e, e.matches('a'))"), true
+    assert_equal environment.evaluate("{'a': 1, 'b': 2}.exists_one(e, e.matches('a'))"), true
   end
 
   def test_evaluate_func_size

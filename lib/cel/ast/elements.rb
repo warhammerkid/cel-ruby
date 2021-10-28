@@ -65,12 +65,12 @@ module Cel
     def to_s
       if var
         if func == :[]
-          "#{var}[#{"(#{args.map(&:inspect).join(', ')})" if args}"
+          "#{var}[#{"(#{args.map(&:to_s).join(', ')})" if args}"
         else
-          "#{var}.#{func}#{"(#{args.map(&:inspect).join(', ')})" if args}"
+          "#{var}.#{func}#{"(#{args.map(&:to_s).join(', ')})" if args}"
         end
       else
-        "#{func}#{"(#{args.map(&:inspect).join(', ')})" if args}"
+        "#{func}#{"(#{args.map(&:to_s).join(', ')})" if args}"
       end
     end
   end
@@ -94,11 +94,36 @@ module Cel
   end
 
   class Number < Literal
+
+    [*ADD_OPERATORS, *MULTI_OPERATORS].each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          Number.new(@type, super)
+        end
+      OUT
+    end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          Bool.new(super)
+        end
+      OUT
+    end
+
   end
 
   class Bool < Literal
     def initialize(value)
       super(:bool, value)
+    end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          Bool.new(super)
+        end
+      OUT
     end
   end
 
@@ -130,6 +155,22 @@ module Cel
     def matches(pattern)
       Macro.matches(self, pattern)
     end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          Bool.new(super)
+        end
+      OUT
+    end
+
+    ADD_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          String.new(@type, super)
+        end
+      OUT
+    end
   end
 
   class Bytes < Literal
@@ -139,6 +180,22 @@ module Cel
 
     def to_ary
       [self]
+    end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          Bool.new(super)
+        end
+      OUT
+    end
+
+    ADD_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          String.new(@type, super)
+        end
+      OUT
     end
   end
 
@@ -208,9 +265,12 @@ module Cel
   class Operation
     attr_reader :op, :operands
 
+    attr_accessor :type
+
     def initialize(op, operands)
       @op = op
       @operands = operands
+      @type = :any
     end
 
     def ==(other)
@@ -221,6 +281,10 @@ module Cel
       else
         super
       end
+    end
+
+    def to_s
+      @operands.join(" #{@op} ")
     end
 
     # def type

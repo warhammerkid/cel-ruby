@@ -14,5 +14,9 @@ module Cel
 
       val
     end
+
+    def merge(bindings)
+      Context.new(@bindings ? @bindings.merge(bindings) : bindings)
+    end
   end
 end

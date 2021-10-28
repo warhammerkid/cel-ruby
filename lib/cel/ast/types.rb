@@ -28,6 +28,8 @@ module Cel
         String.new(String(value))
       when :bytes
         Bytes.new(value.bytes)
+      when :bool
+        Bool.new(value)
       else
         raise Error, "unsupported cast operation to #{@type}"
       end

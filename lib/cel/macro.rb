@@ -38,5 +38,35 @@ module Cel
       pattern = Regexp.new(pattern)
       Bool.new(pattern.match?(string))
     end
+
+    def all(collection, identifier, predicate, context: )
+      collection.all? do |element, *|
+        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
+      end
+    end
+
+    def exists(collection, identifier, predicate, context: )
+      collection.any? do |element, *|
+        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
+      end
+    end
+
+    def exists_one(collection, identifier, predicate, context: )
+      collection.one? do |element, *|
+        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
+      end
+    end
+
+    def filter(collection, identifier, predicate, context: )
+      collection.select do |element, *|
+        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
+      end
+    end
+
+    def map(collection, identifier, predicate, context: )
+      collection.map do |element, *|
+        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate)
+      end
+    end
   end
 end

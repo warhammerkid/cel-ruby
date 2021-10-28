@@ -66,12 +66,12 @@ module Cel
         # unary operations
         values.first.__send__(:"#{op}@")
       elsif op == "&&"
-        values.all? { |x| x == true }
+        Bool.new(values.all? { |x| x == true })
       elsif op == "||"
-        values.any? { |x| x == true }
+        Bool.new(values.any? { |x| x == true })
       elsif op == "in"
         element, collection = values
-        collection.include?(element)
+        Bool.new(collection.include?(element))
       else
         op_value, *values = values
         op_value.public_send(op, *values)
@@ -101,6 +101,9 @@ module Cel
 
         var.public_send(func)
       when Map, List
+        if Macro.respond_to?(func)
+          return Macro.__send__(func, var, *args, context: @context)
+        end
         # If e evaluates to a map, then e.f is equivalent to e['f'] (where f is
         # still being used as a meta-variable, e.g. the expression x.foo is equivalent
         # to the expression x['foo'] when x evaluates to a map).
