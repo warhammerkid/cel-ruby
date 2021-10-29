@@ -24,6 +24,28 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.check("type(type(1)) == type(string)"), Cel::TYPES[:bool]
   end
 
+  def test_check_type_aggregates
+    list_type = environment.check("[1,2,3]")
+    assert_kind_of Cel::ListType, list_type
+    assert_equal list_type.element_type, :int
+    ####
+    list_type = environment.check("['a','b','c']")
+    assert_kind_of Cel::ListType, list_type
+    assert_equal list_type.element_type, :string
+    ####
+    list_type = environment.check("dyn([1, 'one'])")
+    assert_kind_of Cel::ListType, list_type
+    assert_equal list_type.element_type, :any
+    ####
+    map_type = environment.check("{'a': 1,'b': 2,'c': 3}")
+    assert_kind_of Cel::MapType, map_type
+    assert_equal map_type.element_type, :string
+    ####
+    map_type = environment.check("dyn({'a': 1,'b': 2, 2: 3})")
+    assert_kind_of Cel::MapType, map_type
+    assert_equal map_type.element_type, :any
+  end
+
   def test_check_var_expression
     assert_equal environment.check("a + 2"), :any
     assert_equal environment.check("a == 2"), Cel::TYPES[:bool]
@@ -31,7 +53,7 @@ class CelEnvironmentTest < Minitest::Test
   end
 
   def test_check_condition
-    # assert_equal environment.check("true ? 1 : 2"), :int
+    assert_equal environment.check("true ? 1 : 2"), :int
     assert_equal environment.check("2 > 3 ? 1 : 'a'"), :any
   end
 

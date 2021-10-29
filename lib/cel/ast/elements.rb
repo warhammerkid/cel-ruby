@@ -91,6 +91,32 @@ module Cel
     private
 
     def check; end
+
+    def to_cel_type(val)
+      return val if val.is_a?(Literal)
+
+      case
+        # TODO: should support byte streams?
+      when ::String
+        String.new(val)
+      when ::Symbol
+        Identifier.new(val)
+      when ::Integer
+        Number.new(:int, val)
+      when ::Float, ::BigDecimal
+        Number.new(:double, val)
+      when ::Hash
+        Map.new(val)
+      when ::Array
+        List.new(val)
+      when true, false
+        Bool.new(val)
+      when nil
+        Null.new
+      else
+        raise Error, "can't convert #{val} to CEL type"
+      end
+    end
   end
 
   class Number < Literal
@@ -167,7 +193,7 @@ module Cel
     ADD_OPERATORS.each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
-          String.new(@type, super)
+          String.new(super)
         end
       OUT
     end
@@ -201,6 +227,9 @@ module Cel
 
   class List < Literal
     def initialize(value)
+      value = value.map do |v|
+        to_cel_type(v)
+      end
       super(ListType.new(value), value)
     end
 
@@ -218,6 +247,11 @@ module Cel
 
   class Map < Literal
     def initialize(value)
+      value = Hash[
+        value.map do |k, v|
+          [to_cel_type(k), to_cel_type(v)]
+        end
+      ]
       super(MapType.new(value), value)
     end
 
@@ -233,10 +267,12 @@ module Cel
     end
 
     def respond_to_missing?(meth, *args)
-      super || @value.keys.any? { |k| k.to_s == meth.to_s }
+      super || (@value && @value.keys.any? { |k| k.to_s == meth.to_s })
     end
 
     def method_missing(meth, *args)
+      return super unless @value
+
       key = @value.keys.find { |k| k.to_s == meth.to_s } or return super
 
       @value[key]

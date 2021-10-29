@@ -119,7 +119,8 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          # || call(predicate) != :bool
 
           return TYPES[:bool]
         else
@@ -138,14 +139,17 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+
+          # || call(predicate) != :bool
 
           return TYPES[:bool]
         when :filter
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)# || call(predicate) != :bool
+          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          # || call(predicate) != :bool
 
           return TYPES[:list]
         when :map
@@ -223,6 +227,16 @@ module Cel
         check_arity(func, args, 2)
         if find_match_all_types(%i[string], args.map(&method(:call)))
           return TYPES[:bool]
+        end
+      when :dyn
+        check_arity(func, args, 1)
+        arg_type = call(args.first)
+        case arg_type
+        when ListType, MapType
+          arg_type.element_type = TYPES[:any]
+          return arg_type
+        else
+          return arg_type
         end
       else
         unsupported_operation(funcall)

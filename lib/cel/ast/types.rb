@@ -39,9 +39,12 @@ module Cel
   end
 
   class ListType < Type
+    attr_accessor :element_type
+
     def initialize(type_list)
-      @type_list = type_list
       super(:list)
+      @type_list = type_list
+      @element_type = @type_list.empty? ? TYPES[:any] : @type_list.sample.type
     end
 
     def get(idx)
@@ -50,9 +53,12 @@ module Cel
   end
 
   class MapType < Type
+    attr_accessor :element_type
+
     def initialize(type_map)
-      @type_map = type_map
       super(:map)
+      @type_map = type_map
+      @element_type = @type_map.empty? ? TYPES[:any] : @type_map.keys.sample.type
     end
 
     def get(attrib)
