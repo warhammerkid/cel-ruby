@@ -111,17 +111,22 @@ module Cel
 
       return check_standard_func(funcall) unless var
 
-      if Identifier === var
-        check_identifier(var)
-      end
+      var_type = case var
+        when Identifier
+          check_identifier(var)
+        when Invoke
+          check_invoke(var)
+        else
+          var.type
+        end
 
-      case var.type
+      case var_type
       when MapType
         # A field selection expression, e.f, can be applied both to messages and
         # to maps. For maps, selection is interpreted as the field being a string key.
         case func
         when :[]
-          attribute = var.type.get(args)
+          attribute = var_type.get(args)
           unsupported_operation(funcall) unless attribute
         when :all, :exists, :exists_one
           check_arity(funcall, args, 2)
@@ -129,13 +134,13 @@ module Cel
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          element_checker = merge(identifier.to_sym => var.type.element_type)
+          element_checker = merge(identifier.to_sym => var_type.element_type)
 
           unsupported_operation(funcall) if element_checker.check(predicate) != :bool
 
           return TYPES[:bool]
         else
-          attribute = var.type.get(func)
+          attribute = var_type.get(func)
           unsupported_operation(funcall) unless attribute
         end
 
@@ -143,7 +148,7 @@ module Cel
       when ListType
         case func
         when :[]
-          attribute = var.type.get(args)
+          attribute = var_type.get(args)
           unsupported_operation(funcall) unless attribute
           call(attribute)
         when :all, :exists, :exists_one
@@ -152,7 +157,7 @@ module Cel
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          element_checker = merge(identifier.to_sym => var.type.element_type)
+          element_checker = merge(identifier.to_sym => var_type.element_type)
 
           unsupported_operation(funcall) if element_checker.check(predicate) != :bool
 
@@ -163,22 +168,21 @@ module Cel
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          element_checker = merge(identifier.to_sym => var.type.element_type)
+          element_checker = merge(identifier.to_sym => var_type.element_type)
 
           unsupported_operation(funcall) if element_checker.check(predicate) != :bool
 
-          return var.type
+          return var_type
         when :map
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          element_checker = merge(identifier.to_sym => var.type.element_type)
+          element_checker = merge(identifier.to_sym => var_type.element_type)
 
-          type = var.type
-          type.element_type = element_checker.check(predicate)
-          return type
+          var_type.element_type = element_checker.check(predicate)
+          return var_type
         else
           unsupported_operation(funcall)
         end

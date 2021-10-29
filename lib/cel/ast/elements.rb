@@ -233,13 +233,6 @@ module Cel
       super(ListType.new(value), value)
     end
 
-    def ==(other)
-      super || (
-        other.respond_to?(:to_ary) &&
-        @value.zip(other).all?{|x1, x2| x1 == x2 }
-      )
-    end
-
     def to_ary
       [self]
     end

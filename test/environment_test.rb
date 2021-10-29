@@ -148,6 +148,10 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("{'a': 1, 'b': 2}.all(e, e.matches('a'))"), false
     assert_equal environment.evaluate("{'a': 1, 'b': 2}.exists(e, e.matches('a'))"), true
     assert_equal environment.evaluate("{'a': 1, 'b': 2}.exists_one(e, e.matches('a'))"), true
+    # dyn
+    assert_equal environment.evaluate("dyn([1, 2, 3]).map(e, e + e)"), [2, 4, 6]
+    assert_equal environment.evaluate("dyn(['a', 'b', 'c']).map(e, e + e)"), %w[aa bb cc]
+    assert_equal environment.evaluate("dyn([1, 'a']).map(e, e + e)"), [2, 'aa']
   end
 
   def test_evaluate_func_size

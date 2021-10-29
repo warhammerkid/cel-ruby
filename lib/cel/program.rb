@@ -42,7 +42,7 @@ module Cel
     def evaluate_literal(val)
       case val
       when List
-        val.value.map { |y| call(y) }
+        List.new(val.value.map { |y| call(y) })
       else
         val
       end
@@ -85,9 +85,14 @@ module Cel
 
       return evaluate_standard_func(func, args) unless var
 
-      if Identifier === var
-        var = evaluate_identifier(var)
-      end
+      var = case var
+        when Identifier
+          evaluate_identifier(var)
+        when Invoke
+          evaluate_invoke(var)
+        else
+          var
+        end
 
       case var
       when String
@@ -131,7 +136,9 @@ module Cel
         Macro.__send__(func, *args.map(&method(:call)))
       when :int, :uint, :string, :double, :bytes # :duration, :timestamp
         type = TYPES[func]
-        type.cast(args.first)
+        type.cast(call(args.first))
+      when :dyn
+        call(args.first)
       else
         raise Error, "#{func} is not supported"
       end
