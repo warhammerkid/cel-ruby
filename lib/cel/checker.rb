@@ -26,6 +26,10 @@ module Cel
 
     private
 
+    def merge(declarations)
+      Checker.new(@declarations ? @declarations.merge(declarations) : declarations)
+    end
+
     # TODO: add protobuf timestamp and duration
     LOGICAL_EXPECTED_TYPES = %i[bool int uint double string bytes]
     ADD_EXPECTED_TYPES = %i[int uint double string bytes list]
@@ -107,6 +111,10 @@ module Cel
 
       return check_standard_func(funcall) unless var
 
+      if Identifier === var
+        check_identifier(var)
+      end
+
       case var.type
       when MapType
         # A field selection expression, e.f, can be applied both to messages and
@@ -120,7 +128,10 @@ module Cel
           identifier, predicate = args
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
-          # || call(predicate) != :bool
+
+          element_checker = merge(identifier.to_sym => var.type.element_type)
+
+          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
 
           return TYPES[:bool]
         else
@@ -141,7 +152,9 @@ module Cel
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          # || call(predicate) != :bool
+          element_checker = merge(identifier.to_sym => var.type.element_type)
+
+          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
 
           return TYPES[:bool]
         when :filter
@@ -149,16 +162,23 @@ module Cel
           identifier, predicate = args
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
-          # || call(predicate) != :bool
 
-          return TYPES[:list]
+          element_checker = merge(identifier.to_sym => var.type.element_type)
+
+          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
+
+          return var.type
         when :map
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
           unsupported_operation(funcall) if !identifier.is_a?(Identifier)
 
-          return TYPES[:list]
+          element_checker = merge(identifier.to_sym => var.type.element_type)
+
+          type = var.type
+          type.element_type = element_checker.check(predicate)
+          return type
         else
           unsupported_operation(funcall)
         end
@@ -217,11 +237,7 @@ module Cel
         allowed_types = CAST_ALLOWED_TYPES[func]
 
         if find_match_all_types(allowed_types, call(args.first))
-          if func == :bytes
-            return TYPES[:list]
-          else
-            return TYPES[func]
-          end
+          return TYPES[func]
         end
       when :matches
         check_arity(func, args, 2)

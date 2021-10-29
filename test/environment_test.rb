@@ -62,7 +62,7 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.check("uint(1)"), :uint
     assert_equal environment.check("double(1)"), :double
     assert_equal environment.check("string(1)"), :string
-    assert_equal environment.check("bytes('a')"), :list
+    assert_equal environment.check("bytes('a')"), :bytes
   end
 
   def test_check_func_string
