@@ -60,16 +60,16 @@ module Cel
         when "!"
           return type if type == :bool
 
-          unsupported_type(op, type)
+          unsupported_type(operation)
         when "-"
           case type
           when :int, :bool
             type
           else
-            unsupported_type(op, type)
+            unsupported_type(operation)
           end
         else
-          unsupported_operation("#{op}(#{type})")
+          unsupported_type(operation)
         end
       else
 
@@ -97,10 +97,10 @@ module Cel
             return type
           end
         else
-          unsupported_operation(values.join(" #{op} "))
+          unsupported_type(operation)
         end
 
-        unsupported_operation(values.join(" #{op} "))
+        unsupported_type(operation)
       end
     end
 
@@ -132,11 +132,11 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) if !identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
-          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
+          unsupported_type(funcall) if element_checker.check(predicate) != :bool
 
           return TYPES[:bool]
         else
@@ -155,29 +155,29 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) if !identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
-          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
+          unsupported_type(funcall) if element_checker.check(predicate) != :bool
 
           return TYPES[:bool]
         when :filter
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) if !identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
-          unsupported_operation(funcall) if element_checker.check(predicate) != :bool
+          unsupported_type(funcall) if element_checker.check(predicate) != :bool
 
           return var_type
         when :map
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_operation(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) if !identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
@@ -200,9 +200,9 @@ module Cel
             return TYPES[:bool]
           end
         else
-          unsupported_operation(funcall)
+          unsupported_type(funcall)
         end
-        unsupported_operation("#{var}.#{func}")
+        unsupported_operation(funcall)
       else
         TYPES[:any]
       end
@@ -227,7 +227,7 @@ module Cel
       when :has
         check_arity(func, args, 1)
         unless args.first.is_a?(Invoke)
-          raise unsupported_operation(funcall)
+          unsupported_type(funcall)
         end
 
         return TYPES[:bool]
@@ -259,7 +259,7 @@ module Cel
           return arg_type
         end
       else
-        unsupported_operation(funcall)
+        unsupported_type(funcall)
       end
 
       unsupported_operation(funcall)
@@ -333,7 +333,7 @@ module Cel
     end
 
     def unsupported_type(op, type)
-      raise Error, "unsupported type (#{type}) for operation (#{op})"
+      raise NoMatchingOverloadError.new(op)
     end
 
     def unsupported_operation(op)
