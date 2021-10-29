@@ -30,6 +30,8 @@ module Cel
         Bytes.new(value.bytes)
       when :bool
         Bool.new(value)
+      when :any
+        value
       else
         raise Error, "unsupported cast operation to #{@type}"
       end
@@ -65,5 +67,6 @@ module Cel
   TYPES = Hash[
     PRIMITIVE_TYPES.map {|typ| [typ, Type.new(typ)]}
   ]
-  TYPES[:type] == Type.new(:type)
+  TYPES[:type] = Type.new(:type)
+  TYPES[:any] = Type.new(:any)
 end

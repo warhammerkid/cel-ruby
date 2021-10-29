@@ -12,7 +12,7 @@ module Cel
 
     def initialize(identifier)
       @id = identifier
-      @type = :any
+      @type = TYPES[:any]
       super(@id)
     end
 
@@ -270,7 +270,7 @@ module Cel
     def initialize(op, operands)
       @op = op
       @operands = operands
-      @type = :any
+      @type = TYPES[:any]
     end
 
     def ==(other)
@@ -286,48 +286,6 @@ module Cel
     def to_s
       @operands.join(" #{@op} ")
     end
-
-    # def type
-    #   case @op
-    #   when *LOGICAL_OPERATORS, "&&", "||"
-    #     @type = :bool
-    #   when *MULTI_OPERATORS
-    #     types = @operands.map(&:type).uniq
-    #     if types.size == 1
-    #       @type = :any if types.include?(:any)
-    #       @type ||= :number if types.include?(:number)
-    #     end
-    #   when "!"
-    #     types = @operands.map(&:type).uniq
-    #     if types.size == 1
-    #       @type = :any if types.include?(:any)
-    #       @type ||= :bool if types.include?(:bool)
-    #     end
-    #   when "-"
-    #     if @operands.size == 1
-    #       # negative
-    #       if types.size == 1
-    #         @type = :any if types.include?(:any)
-    #         @type ||= :integer if types.include?(:integer)
-    #       end
-    #     else
-
-    #     end
-
-    #   when *ADD_OPERATORS
-    #     types = @operands.map(&:type).uniq
-    #     if types.size == 1
-    #       @type = :any if types.include?(:any)
-    #       @type ||= :list if @op != "-" && types.include?(:list)
-    #       @type ||= :string if types.include?(:string)
-    #       @type ||= :number if types.include?(:number)
-    #     end
-
-    #   end
-    #   return if @type
-
-    #   raise Error, "operand types invalid for #{@op} (#{types.join(", ")})"
-    # end
   end
 
   class Condition

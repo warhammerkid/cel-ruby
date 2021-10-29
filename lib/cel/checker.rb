@@ -45,7 +45,7 @@ module Cel
       values = operation.operands.map do |operand|
         ev_operand = call(operand)
 
-        return :any if ev_operand == :any && !%w[&& || == != < <= >= >].include?(op)
+        return TYPES[:any] if ev_operand == :any && !%w[&& || == != < <= >= >].include?(op)
 
         ev_operand
       end
@@ -176,7 +176,7 @@ module Cel
         end
         unsupported_operation("#{var}.#{func}")
       else
-        :any
+        TYPES[:any]
       end
     end
 
@@ -240,7 +240,7 @@ module Cel
 
       id_type = infer_dec_type(identifier.id)
 
-      return :any unless id_type
+      return TYPES[:any] unless id_type
 
       identifier.type = id_type
     end
@@ -251,7 +251,7 @@ module Cel
 
       return then_type if then_type == else_type
 
-      :any
+      TYPES[:any]
     end
 
     def infer_dec_type(id)
