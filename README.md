@@ -1,15 +1,15 @@
 # Cel::Ruby
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/cel/ruby`. To experiment with that code, run `bin/console` for an interactive prompt.
+Pure Python implementation of Google Common Expression Language, https://opensource.google/projects/cel.
 
-TODO: Delete this and the text above, and describe your gem
+> The Common Expression Language (CEL) implements common semantics for expression evaluation, enabling different applications to more easily interoperate.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cel-ruby'
+gem 'cel'
 ```
 
 And then execute:
@@ -18,18 +18,62 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install cel-ruby
+    $ gem install cel
 
 ## Usage
 
-TODO: Write usage instructions here
+The usage pattern follows the pattern defined by [cel-go](https://github.com/google/cel-go), i.e. define an environment, which then can be used to parse, compile and evaluate a CEL program.
+
+```ruby
+require "cel"
+
+# set the environment
+env = Cel::Environment.new(name: :string, group: :string)
+
+# parse and check
+begin
+  ast = env.compile('name.startsWith("/groups/" + group)') #=> Cel::Types[:bool], which is == :bool
+rescue Cel::Error => e
+  STDERR.puts("type-check error: #{e.message}")
+  raise e
+end
+
+# evaluate
+begin
+  return_value = env.evaluate(ast,
+    name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
+    group: Cel::String.new("acme.co"))
+rescue Cel::Error => e
+  STDERR.puts("evaluation error: #{e.message}")
+  raise e
+end
+
+puts return_value #=> "true"
+```
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Clone the repo in your local machine, where you have `ruby` installed. Then you can:
+
+```bash
+# install dev dependencies
+> bundle install
+# run tests
+> bundle exec rake test
+```
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
+### CEL parser
+
+The parser is based on the grammar defined in [cel-spec](https://github.com/google/cel-spec/blob/master/doc/langdef.md#syntax), and developed using [racc](https://github.com/ruby/racc), a LALR(1) parser generator, which is part of ruby's standard library.
+
+Changes in the parser are therefore accomplished by modifying the `parser.ry` file and running:
+
+```bash
+> bundle exec racc -o lib/cel/parser.rb lib/cel/parser.ry
+```
+
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/cel-ruby.
+Bug reports and pull requests are welcome on GitHub at https://gitlab.com/honeyryderchuck/cel-ruby.
