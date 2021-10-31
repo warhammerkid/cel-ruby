@@ -67,25 +67,25 @@ class CelParserTest < Minitest::Test
 
   def string_tokens
     [
-      [%Q{""}, ""], # Empty string
-      [%Q{'""'}, "\"\""], # String of two double-quote characters
-      [%Q{'''x''x'''}, "x''x"], # String of four characters "x''x"
-      [%Q{"\\""}, "\""], # String of one double-quote character
-      [%Q{"\\"}, "\\"], # String of one backslash character
-      [%Q{r"\\"}, "\\\\"], # String of two backslash characters
+      [%(""), ""], # Empty string
+      [%('""'), "\"\""], # String of two double-quote characters
+      [%('''x''x'''), "x''x"], # String of four characters "x''x"
+      [%("\\""), "\""], # String of one double-quote character
+      [%("\\"), "\\"], # String of one backslash character
+      [%(r"\\"), "\\\\"] # String of two backslash characters
     ]
   end
 
   def bytes_tokens
     [
-      [%Q{b"abc"}, [97, 98, 99]], # Byte sequence of 97, 98, 99
-      [%Q{b"ÿ"}, [195, 191]], # Sequence of bytes 195 and 191 (UTF-8 of ÿ)
-      [%Q{b"\303\277"}, [195, 191]], # Also sequence of bytes 195 and 191
+      [%(b"abc"), [97, 98, 99]], # Byte sequence of 97, 98, 99
+      [%(b"ÿ"), [195, 191]], # Sequence of bytes 195 and 191 (UTF-8 of ÿ)
+      [%(b"\303\277"), [195, 191]], # Also sequence of bytes 195 and 191
       # [%Q{"\303\277"}, "Ã¿"], # String of "Ã¿" (code points 195, 191)
       # [%Q{"\377"}, "ÿ"], # String of "ÿ" (code point 255)
-      [%Q{b"\377"}, [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
+      [%(b"\377"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
       # [%Q{"\xFF"}, "ÿ"], # String of "ÿ" (code point 255)
-      [%Q{b"\xFF"}, [255]], #Sequence of byte 255 (not UTF-8 of ÿ)
+      [%(b"\xFF"), [255]] # Sequence of byte 255 (not UTF-8 of ÿ)
     ]
   end
 end

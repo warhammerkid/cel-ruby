@@ -1,5 +1,6 @@
 module Cel
   class Error < StandardError; end
+
   class NoSuchFieldError < Error
     attr_reader :code
 
@@ -17,5 +18,4 @@ module Cel
       @code = :no_matching_overload
     end
   end
-
 end

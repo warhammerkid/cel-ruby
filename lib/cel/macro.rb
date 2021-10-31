@@ -19,7 +19,7 @@ module Cel
         # has(e.f) raises a no_such_field error.
         raise NoSuchFieldError.new(var, func) unless var.field?(func)
 
-        Bool.new(var.public_send(func) != nil)
+        Bool.new(!var.public_send(func).nil?)
       when Map
         # If e evaluates to a map, then has(e.f) indicates whether the string f
         # is a key in the map (note that f must syntactically be an identifier).
@@ -39,31 +39,31 @@ module Cel
       Bool.new(pattern.match?(string))
     end
 
-    def all(collection, identifier, predicate, context: )
+    def all(collection, identifier, predicate, context:)
       collection.all? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
     end
 
-    def exists(collection, identifier, predicate, context: )
+    def exists(collection, identifier, predicate, context:)
       collection.any? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
     end
 
-    def exists_one(collection, identifier, predicate, context: )
+    def exists_one(collection, identifier, predicate, context:)
       collection.one? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
     end
 
-    def filter(collection, identifier, predicate, context: )
+    def filter(collection, identifier, predicate, context:)
       collection.select do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
     end
 
-    def map(collection, identifier, predicate, context: )
+    def map(collection, identifier, predicate, context:)
       collection.map do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate)
       end

@@ -1,13 +1,10 @@
 module Cel
   class Environment
-
-    def initialize(declarations=nil)
+    def initialize(declarations = nil)
       @declarations = declarations
       @parser = Parser.new
       @checker = Checker.new(@declarations)
     end
-
-
 
     def compile(expr)
       ast = @parser.parse(expr)
@@ -34,7 +31,6 @@ module Cel
     private
 
     def validate(ast, structs)
-
     end
   end
 

@@ -1,7 +1,7 @@
 require "delegate"
 
 module Cel
-  LOGICAL_OPERATORS =  %w[< <= >= > == != in]
+  LOGICAL_OPERATORS = %w[< <= >= > == != in]
   ADD_OPERATORS = %w[+ -]
   MULTI_OPERATORS = %w[* / %]
 
@@ -45,7 +45,6 @@ module Cel
     end
   end
 
-
   class Invoke
     attr_reader :var, :func, :args
 
@@ -65,12 +64,12 @@ module Cel
     def to_s
       if var
         if func == :[]
-          "#{var}[#{"(#{args.map(&:to_s).join(', ')})" if args}"
+          "#{var}[#{"(#{args.map(&:to_s).join(", ")})" if args}"
         else
-          "#{var}.#{func}#{"(#{args.map(&:to_s).join(', ')})" if args}"
+          "#{var}.#{func}#{"(#{args.map(&:to_s).join(", ")})" if args}"
         end
       else
-        "#{func}#{"(#{args.map(&:to_s).join(', ')})" if args}"
+        "#{func}#{"(#{args.map(&:to_s).join(", ")})" if args}"
       end
     end
   end
@@ -90,12 +89,13 @@ module Cel
 
     private
 
-    def check; end
+    def check
+    end
 
     def to_cel_type(val)
       return val if val.is_a?(Literal)
 
-      case
+      case val
         # TODO: should support byte streams?
       when ::String
         String.new(val)
@@ -120,7 +120,6 @@ module Cel
   end
 
   class Number < Literal
-
     [*ADD_OPERATORS, *MULTI_OPERATORS].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
@@ -136,7 +135,6 @@ module Cel
         end
       OUT
     end
-
   end
 
   class Bool < Literal
@@ -154,7 +152,7 @@ module Cel
   end
 
   class Null < Literal
-    def initialize()
+    def initialize
       super(:null_type, nil)
     end
   end
@@ -240,18 +238,16 @@ module Cel
 
   class Map < Literal
     def initialize(value)
-      value = Hash[
-        value.map do |k, v|
-          [to_cel_type(k), to_cel_type(v)]
-        end
-      ]
+      value = value.map do |k, v|
+        [to_cel_type(k), to_cel_type(v)]
+      end.to_h
       super(MapType.new(value), value)
     end
 
     def ==(other)
       super || (
         other.respond_to?(:to_hash) &&
-        @value.zip(other).all?{|(x1, y1), (x2, y2)| x1 == x2 && y1 == y2 }
+        @value.zip(other).all? { |(x1, y1), (x2, y2)| x1 == x2 && y1 == y2 }
       )
     end
 
@@ -305,8 +301,8 @@ module Cel
     def ==(other)
       if other.is_a?(Array)
         other.size == @operands.size + 1 &&
-        other.first == @op &&
-        other.slice(1..-1).zip(@operands).all?{ |x1, x2| x1 == x2 }
+          other.first == @op &&
+          other.slice(1..-1).zip(@operands).all? { |x1, x2| x1 == x2 }
       else
         super
       end

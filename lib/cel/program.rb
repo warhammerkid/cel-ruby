@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-
 module Cel
   class Program
-
     def initialize(context)
       @context = context
     end
@@ -27,7 +25,7 @@ module Cel
       end
     end
 
-    alias call evaluate
+    alias_method :call, :evaluate
 
     private
 
@@ -51,7 +49,6 @@ module Cel
     def evaluate_operation(operation)
       op = operation.op
 
-
       values = operation.operands.map do |operand|
         ev_operand = call(operand)
 
@@ -60,9 +57,8 @@ module Cel
         ev_operand
       end
 
-
       if values.size == 1 &&
-        op != "!" # https://bugs.ruby-lang.org/issues/18246
+          op != "!" # https://bugs.ruby-lang.org/issues/18246
         # unary operations
         values.first.__send__(:"#{op}@")
       elsif op == "&&"
@@ -92,7 +88,7 @@ module Cel
           evaluate_invoke(var)
         else
           var
-        end
+      end
 
       case var
       when String

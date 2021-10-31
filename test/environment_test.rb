@@ -11,7 +11,7 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.check("1 + 2"), Cel::TYPES[:int]
 
     assert_kind_of Cel::ListType, environment.check("[1, 2]")
-    assert_kind_of Cel::MapType,  environment.check("{'a': 2}")
+    assert_kind_of Cel::MapType, environment.check("{'a': 2}")
 
     assert_equal environment.check("[1, 2][0]"), Cel::TYPES[:int]
     assert_equal environment.check("Struct{a: 2}.a"), Cel::TYPES[:int]
@@ -99,7 +99,6 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 > 4"), false
     assert_equal environment.evaluate("!false"), true
 
-
     assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
     assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false
     assert_equal environment.evaluate("{'a': 1} == {'a': 1}"), true
@@ -126,7 +125,7 @@ class CelEnvironmentTest < Minitest::Test
   def test_evaluate_condition
     assert_equal environment.evaluate("true ? 1 : 2"), 1
     assert_equal environment.evaluate("2 < 3 ? 1 : 'a'"), 1
-    assert_equal environment.evaluate("2 > 3 ? 1 : 'a'"), 'a'
+    assert_equal environment.evaluate("2 > 3 ? 1 : 'a'"), "a"
     assert_equal environment.evaluate("2 < 3 ? (2 + 3) : 'a'"), 5
   end
 
@@ -136,7 +135,6 @@ class CelEnvironmentTest < Minitest::Test
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
   end
-
 
   def test_evaluate_macros_map_filter
     assert_equal environment.evaluate("[1, 2, 3].all(e, e > 0)"), true
@@ -151,7 +149,7 @@ class CelEnvironmentTest < Minitest::Test
     # dyn
     assert_equal environment.evaluate("dyn([1, 2, 3]).map(e, e + e)"), [2, 4, 6]
     assert_equal environment.evaluate("dyn(['a', 'b', 'c']).map(e, e + e)"), %w[aa bb cc]
-    assert_equal environment.evaluate("dyn([1, 'a']).map(e, e + e)"), [2, 'aa']
+    assert_equal environment.evaluate("dyn([1, 'a']).map(e, e + e)"), [2, "aa"]
   end
 
   def test_evaluate_func_size
@@ -204,28 +202,25 @@ class CelEnvironmentTest < Minitest::Test
     || (account.overdraftProtection
     && account.overdraftLimit >= transaction.withdrawal  - account.balance)
     EXPR
-      ), Cel::TYPES[:bool]
+                       ), Cel::TYPES[:bool]
     )
 
-  #     assert_equal(
-  #       environment.check(<<-EXPR
-  # // Object construction
-  # common.GeoPoint{ latitude: 10.0, longitude: -5.5 }
-  #   EXPR
-  #     ),  Cel::TYPES[:object]
-  #   )
+    #     assert_equal(
+    #       environment.check(<<-EXPR
+    # // Object construction
+    # common.GeoPoint{ latitude: 10.0, longitude: -5.5 }
+    #   EXPR
+    #     ),  Cel::TYPES[:object]
+    #   )
   end
 
   def test_evaluate_the_mothership
-    account_type = Struct.new(:balance, :overdraftProtection, :overdraftLimit)
-    transaction_type = Struct.new(:withdrawal)
-
     program = environment.program(<<-EXPR
       account.balance >= transaction.withdrawal
         || (account.overdraftProtection
         && account.overdraftLimit >= transaction.withdrawal  - account.balance)
-        EXPR
-      )
+    EXPR
+                                 )
 
     assert_equal program.evaluate(
       account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
@@ -247,13 +242,13 @@ class CelEnvironmentTest < Minitest::Test
       account: Cel::Map.new(balance: 100, overdraftProtection: true, overdraftLimit: 10),
       transaction: Cel::Map.new(withdrawal: 111)
     ), false
-  #     assert_equal(
-  #       environment.check(<<-EXPR
-  # // Object construction
-  # common.GeoPoint{ latitude: 10.0, longitude: -5.5 }
-  #   EXPR
-  #     ),  Cel::TYPES[:object]
-  #   )
+    #     assert_equal(
+    #       environment.check(<<-EXPR
+    # // Object construction
+    # common.GeoPoint{ latitude: 10.0, longitude: -5.5 }
+    #   EXPR
+    #     ),  Cel::TYPES[:object]
+    #   )
   end
 
   private

@@ -1,6 +1,5 @@
 module Cel
   class Checker
-
     def initialize(declarations)
       @declarations = declarations
     end
@@ -22,7 +21,7 @@ module Cel
       end
     end
 
-    alias call check
+    alias_method :call, :check
 
     private
 
@@ -118,7 +117,7 @@ module Cel
           check_invoke(var)
         else
           var.type
-        end
+      end
 
       case var_type
       when MapType
@@ -161,7 +160,7 @@ module Cel
 
           unsupported_type(funcall) if element_checker.check(predicate) != :bool
 
-          return TYPES[:bool]
+          TYPES[:bool]
         when :filter
           check_arity(funcall, args, 2)
           identifier, predicate = args
@@ -172,7 +171,7 @@ module Cel
 
           unsupported_type(funcall) if element_checker.check(predicate) != :bool
 
-          return var_type
+          var_type
         when :map
           check_arity(funcall, args, 2)
           identifier, predicate = args
@@ -182,7 +181,7 @@ module Cel
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
           var_type.element_type = element_checker.check(predicate)
-          return var_type
+          var_type
         else
           unsupported_operation(funcall)
         end
@@ -213,7 +212,7 @@ module Cel
       uint: %i[int double string],
       string: %i[int uint double bytes], # TODO: timestamp, duration
       double: %i[int uint string],
-      bytes: %i[string],
+      bytes: %i[string]
     }
 
     def check_standard_func(funcall)
@@ -254,10 +253,8 @@ module Cel
         case arg_type
         when ListType, MapType
           arg_type.element_type = TYPES[:any]
-          return arg_type
-        else
-          return arg_type
         end
+        return arg_type
       else
         unsupported_type(funcall)
       end
@@ -310,7 +307,6 @@ module Cel
         raise Error, "can't convert #{typ}"
       end
     end
-
 
     def find_match_all_types(expected, types)
       # at least an expected type must match all values
