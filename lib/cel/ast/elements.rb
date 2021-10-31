@@ -93,9 +93,9 @@ module Cel
     end
 
     def to_cel_type(val)
-      return val if val.is_a?(Literal)
-
       case val
+      when Literal, Identifier
+        val
         # TODO: should support byte streams?
       when ::String
         String.new(val)
