@@ -1,0 +1,123 @@
+stages:
+  - test
+  - prepare
+  - deploy
+
+# Cache gems in between builds
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/ruby
+    - vendor/jruby
+
+variables:
+  BUNDLE_JOBS: 10
+  BUNDLE_PATH: vendor
+  CI: 1
+
+.before_script: &before_script
+  - ruby -v
+  - bundle install
+
+jruby:
+  variables:
+    JRUBY_OPTS: "--debug"
+  before_script:
+    - bundle install
+  image: "jruby:9.3"
+  script:
+    - bundle exec rake test
+  artifacts:
+    paths:
+      - coverage
+truffleruby:
+  before_script:
+    - bundle install
+  image: "ghcr.io/graalvm/truffleruby:latest"
+  script:
+    - bundle exec rake test
+ruby23:
+  before_script:
+    - bundle install
+  image: "ruby:2.3"
+  script:
+    - bundle exec rake test
+ruby24:
+  before_script:
+    - bundle install
+  image: "ruby:2.4"
+  only:
+    - master
+  script:
+    - bundle exec rake test
+ruby25:
+  before_script:
+    - bundle install
+  image: "ruby:2.5-alpine"
+  only:
+    - master
+  script:
+    - bundle exec rake test
+ruby26:
+  before_script:
+   - bundle install
+  image: "ruby:2.6"
+  only:
+    - master
+  script:
+    - bundle exec rake test
+ruby27:
+  before_script:
+    - bundle install
+  image: "ruby:2.7"
+  script:
+    - bundle exec rake test
+  artifacts:
+    paths:
+      - coverage
+ruby30:
+  before_script:
+    - bundle install
+    # - export RUBYOPT="-rbundler/setup -rrbs/test/setup"
+    # - export RBS_TEST_RAISE="true"
+    # - export RBS_TEST_LOGLEVEL="error"
+    # - export RBS_TEST_OPT="-Isig"
+    # - export RBS_TEST_TARGET="HTTP2Next*"
+  image: "ruby:3.0"
+  script:
+    - bundle exec rake test
+    - bundle exec rake standard
+  artifacts:
+    paths:
+      - coverage
+
+coverage:
+  stage: prepare
+  dependencies:
+    - truffleruby
+    - jruby
+    - ruby23
+    - ruby27
+  image: "ruby:3.0"
+  before_script:
+    - gem install simplecov --no-doc
+  script:
+    - find coverage -name "*resultset.json" -exec sed -i 's?/home?'`pwd`'?' {} \;
+    - rake coverage:report
+  artifacts:
+    paths:
+      - "coverage/"
+
+pages:
+  stage: deploy
+  dependencies:
+    - coverage
+  script:
+    - mkdir public
+    - mv coverage public/coverage
+  only:
+    - master
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days

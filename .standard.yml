@@ -4,5 +4,6 @@ format: progress        # default: Standard::Formatter
 default_ignores: false  # default: true
 ignore:                 # default: []
   - 'lib/cel/parser.rb'
+  - 'vendor/**/*'
   - '**/*':
     - Style/SafeNavigation
