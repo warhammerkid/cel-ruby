@@ -36,34 +36,22 @@ truffleruby:
   image: "ghcr.io/graalvm/truffleruby:latest"
   script:
     - bundle exec rake test
-ruby23:
-  before_script:
-    - bundle install
-  image: "ruby:2.3"
-  script:
-    - bundle exec rake test
 ruby24:
   before_script:
     - bundle install
   image: "ruby:2.4"
-  only:
-    - master
   script:
     - bundle exec rake test
 ruby25:
   before_script:
     - bundle install
   image: "ruby:2.5-alpine"
-  only:
-    - master
   script:
     - bundle exec rake test
 ruby26:
   before_script:
    - bundle install
   image: "ruby:2.6"
-  only:
-    - master
   script:
     - bundle exec rake test
 ruby27:
@@ -96,8 +84,11 @@ coverage:
   dependencies:
     - truffleruby
     - jruby
-    - ruby23
+    - ruby24
+    - ruby25
+    - ruby26
     - ruby27
+    - ruby30
   image: "ruby:3.0"
   before_script:
     - gem install simplecov --no-doc
