@@ -15,13 +15,23 @@ module Cel
 module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 96)
 
 
-OPERATORS = {
-  **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
-  **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
-  **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
-  "&&" => :tANDOP,
-  "||" => :tOROP
-}
+
+OPERATORS = if RUBY_VERSION < "2.7.0"
+  {
+    "&&" => :tANDOP,
+    "||" => :tOROP
+  }.merge(Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
+   .merge(Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }])
+   .merge(Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
+else
+  {
+    **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+    **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
+    **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
+    "&&" => :tANDOP,
+    "||" => :tOROP
+  }
+end.freeze
 
 OPERATORS_RE = Regexp.union(*OPERATORS.keys)
 
@@ -30,7 +40,7 @@ as break const continue else
 for function if import let
 loop package namespace return
 var void while
-]
+].freeze
 
 IDENTIFIER_REGEX = /[a-zA-Z][_a-zA-Z0-9]*/
 
