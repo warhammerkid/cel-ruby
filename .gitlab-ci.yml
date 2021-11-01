@@ -36,13 +36,7 @@ truffleruby:
   image: "ghcr.io/graalvm/truffleruby:latest"
   script:
     - bundle exec rake test
-ruby25:
-  before_script:
-    - apt-get update && apt-get install -y build-essential
-    - bundle install
-  image: "ruby:2.5-alpine"
-  script:
-    - bundle exec rake test
+  allow_failure: true
 ruby26:
   before_script:
    - bundle install
@@ -79,7 +73,6 @@ coverage:
   dependencies:
     - truffleruby
     - jruby
-    - ruby25
     - ruby26
     - ruby27
     - ruby30

@@ -51,6 +51,11 @@ end
 puts return_value #=> "true"
 ```
 
+
+## Supported Rubies
+
+All Rubies greater or equal to 2.5, and always latest JRuby and Truffleruby.
+
 ## Development
 
 Clone the repo in your local machine, where you have `ruby` installed. Then you can:
