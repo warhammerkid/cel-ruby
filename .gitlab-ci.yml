@@ -74,7 +74,7 @@ ruby30:
   image: "ruby:3.0"
   script:
     - bundle exec rake test
-    - bundle exec rake standard
+    - bundle exec rake rubocop
   artifacts:
     paths:
       - coverage

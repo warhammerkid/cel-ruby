@@ -119,7 +119,7 @@ class CelEnvironmentTest < Minitest::Test
 
   def test_evaluate_var_expression
     assert_raises(Cel::Error) { environment.evaluate("a == 2") }
-    assert_equal environment.evaluate("a == 2", {a: Cel::Number.new(:int, 1)}), false
+    assert_equal environment.evaluate("a == 2", { a: Cel::Number.new(:int, 1) }), false
   end
 
   def test_evaluate_condition

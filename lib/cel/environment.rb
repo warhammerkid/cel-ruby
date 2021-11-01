@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cel
   class Environment
     def initialize(declarations = nil)
@@ -30,8 +32,7 @@ module Cel
 
     private
 
-    def validate(ast, structs)
-    end
+    def validate(ast, structs); end
   end
 
   class Runner

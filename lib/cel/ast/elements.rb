@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 require "delegate"
 
 module Cel
-  LOGICAL_OPERATORS = %w[< <= >= > == != in]
-  ADD_OPERATORS = %w[+ -]
-  MULTI_OPERATORS = %w[* / %]
+  LOGICAL_OPERATORS = %w[< <= >= > == != in].freeze
+  ADD_OPERATORS = %w[+ -].freeze
+  MULTI_OPERATORS = %w[* / %].freeze
 
   class Identifier < SimpleDelegator
     attr_reader :id
@@ -39,9 +41,9 @@ module Cel
 
     # For a message, the field names are identifiers.
     def check(struct)
-      unless struct.each_key.all? { |key| key.is_a?(Identifier) }
-        raise Error, "#{struct} is invalid (keys must be identifiers)"
-      end
+      return if struct.each_key.all? { |key| key.is_a?(Identifier) }
+
+      raise Error, "#{struct} is invalid (keys must be identifiers)"
     end
   end
 
@@ -89,8 +91,7 @@ module Cel
 
     private
 
-    def check
-    end
+    def check; end
 
     def to_cel_type(val)
       case val
@@ -269,19 +270,20 @@ module Cel
 
     private
 
-    ALLOWED_TYPES = %i[int uint bool string]
+    ALLOWED_TYPES = %i[int uint bool string].freeze
 
     # For a map, the entry keys are sub-expressions that must evaluate to values
     # of an allowed type (int, uint, bool, or string)
     def check
-      unless @value.each_key.all? { |key| ALLOWED_TYPES.include?(key.type) }
-        raise Error, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
-      end
+      return if @value.each_key.all? { |key| ALLOWED_TYPES.include?(key.type) }
+
+      raise Error, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
     end
   end
 
   class Group
     attr_reader :value
+
     def initialize(value)
       @value = value
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cel
   class Checker
     def initialize(declarations)
@@ -30,11 +32,11 @@ module Cel
     end
 
     # TODO: add protobuf timestamp and duration
-    LOGICAL_EXPECTED_TYPES = %i[bool int uint double string bytes]
-    ADD_EXPECTED_TYPES = %i[int uint double string bytes list]
-    SUB_EXPECTED_TYPES = %i[int uint double]
-    MULTIDIV_EXPECTED_TYPES = %i[int uint double]
-    REMAINDER_EXPECTED_TYPES = %i[int uint]
+    LOGICAL_EXPECTED_TYPES = %i[bool int uint double string bytes].freeze
+    ADD_EXPECTED_TYPES = %i[int uint double string bytes list].freeze
+    SUB_EXPECTED_TYPES = %i[int uint double].freeze
+    MULTIDIV_EXPECTED_TYPES = %i[int uint double].freeze
+    REMAINDER_EXPECTED_TYPES = %i[int uint].freeze
 
     def check_operation(operation)
       type = infer_operation_type(operation)
@@ -42,13 +44,15 @@ module Cel
       type
     end
 
+    BOOLABLE_OPERATORS = %w[&& || == != < <= >= >].freeze
+
     def infer_operation_type(operation)
       op = operation.op
 
       values = operation.operands.map do |operand|
         ev_operand = call(operand)
 
-        return TYPES[:any] if ev_operand == :any && !%w[&& || == != < <= >= >].include?(op)
+        return TYPES[:any] if ev_operand == :any && !BOOLABLE_OPERATORS.include?(op)
 
         ev_operand
       end
@@ -76,9 +80,7 @@ module Cel
         when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
           return TYPES[:bool]
         when "in"
-          if find_match_all_types(%i[list map], values.last)
-            return TYPES[:bool]
-          end
+          return TYPES[:bool] if find_match_all_types(%i[list map], values.last)
         when "+"
           if (type = find_match_all_types(ADD_EXPECTED_TYPES, values))
             return type
@@ -111,12 +113,12 @@ module Cel
       return check_standard_func(funcall) unless var
 
       var_type = case var
-        when Identifier
-          check_identifier(var)
-        when Invoke
-          check_invoke(var)
-        else
-          var.type
+                 when Identifier
+                   check_identifier(var)
+                 when Invoke
+                   check_invoke(var)
+                 else
+                   var.type
       end
 
       case var_type
@@ -131,7 +133,7 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_type(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) unless identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
@@ -154,7 +156,7 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_type(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) unless identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
@@ -165,7 +167,7 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_type(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) unless identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
@@ -176,7 +178,7 @@ module Cel
           check_arity(funcall, args, 2)
           identifier, predicate = args
 
-          unsupported_type(funcall) if !identifier.is_a?(Identifier)
+          unsupported_type(funcall) unless identifier.is_a?(Identifier)
 
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
@@ -189,15 +191,11 @@ module Cel
         case func
         when :contains, :endsWith, :startsWith
           check_arity(funcall, args, 1)
-          if find_match_all_types(%i[string], call(args.first))
-            return TYPES[:bool]
-          end
-        when :matches
+          return TYPES[:bool] if find_match_all_types(%i[string], call(args.first))
+        when :matches # rubocop:disable Lint/DuplicateBranch
           check_arity(funcall, args, 1)
           # TODO: verify if string can be transformed into a regex
-          if find_match_all_types(%i[string], call(args.first))
-            return TYPES[:bool]
-          end
+          return TYPES[:bool] if find_match_all_types(%i[string], call(args.first))
         else
           unsupported_type(funcall)
         end
@@ -212,8 +210,8 @@ module Cel
       uint: %i[int double string],
       string: %i[int uint double bytes], # TODO: timestamp, duration
       double: %i[int uint string],
-      bytes: %i[string]
-    }
+      bytes: %i[string],
+    }.freeze
 
     def check_standard_func(funcall)
       func = funcall.func
@@ -225,28 +223,20 @@ module Cel
         return TYPES[:type]
       when :has
         check_arity(func, args, 1)
-        unless args.first.is_a?(Invoke)
-          unsupported_type(funcall)
-        end
+        unsupported_type(funcall) unless args.first.is_a?(Invoke)
 
         return TYPES[:bool]
       when :size
         check_arity(func, args, 1)
-        if find_match_all_types(%i[string bytes list map], call(args.first))
-          return TYPES[:int]
-        end
+        return TYPES[:int] if find_match_all_types(%i[string bytes list map], call(args.first))
       when :int, :uint, :string, :double, :bytes # :duration, :timestamp
         check_arity(func, args, 1)
         allowed_types = CAST_ALLOWED_TYPES[func]
 
-        if find_match_all_types(allowed_types, call(args.first))
-          return TYPES[func]
-        end
+        return TYPES[func] if find_match_all_types(allowed_types, call(args.first))
       when :matches
         check_arity(func, args, 2)
-        if find_match_all_types(%i[string], args.map(&method(:call)))
-          return TYPES[:bool]
-        end
+        return TYPES[:bool] if find_match_all_types(%i[string], args.map { |arg| call(arg) })
       when :dyn
         check_arity(func, args, 1)
         arg_type = call(args.first)
@@ -265,9 +255,7 @@ module Cel
     def check_identifier(identifier)
       return unless identifier.type == :any
 
-      if Cel::PRIMITIVE_TYPES.include?(identifier.to_sym)
-        return TYPES[:type]
-      end
+      return TYPES[:type] if Cel::PRIMITIVE_TYPES.include?(identifier.to_sym)
 
       id_type = infer_dec_type(identifier.id)
 
@@ -313,7 +301,7 @@ module Cel
       type = expected.find do |expected_type|
         case types
         when Array
-          types.all? { |type| type == expected_type }
+          types.all? { |typ| typ == expected_type }
         else
           types == expected_type
         end
@@ -328,8 +316,8 @@ module Cel
       raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end
 
-    def unsupported_type(op, type)
-      raise NoMatchingOverloadError.new(op)
+    def unsupported_type(op, _type)
+      raise NoMatchingOverloadError, op
     end
 
     def unsupported_operation(op)

@@ -58,7 +58,7 @@ module Cel
       end
 
       if values.size == 1 &&
-          op != "!" # https://bugs.ruby-lang.org/issues/18246
+         op != "!" # https://bugs.ruby-lang.org/issues/18246
         # unary operations
         values.first.__send__(:"#{op}@")
       elsif op == "&&"
@@ -82,12 +82,12 @@ module Cel
       return evaluate_standard_func(func, args) unless var
 
       var = case var
-        when Identifier
-          evaluate_identifier(var)
-        when Invoke
-          evaluate_invoke(var)
-        else
-          var
+            when Identifier
+              evaluate_identifier(var)
+            when Invoke
+              evaluate_invoke(var)
+            else
+              var
       end
 
       case var
@@ -102,9 +102,8 @@ module Cel
 
         var.public_send(func)
       when Map, List
-        if Macro.respond_to?(func)
-          return Macro.__send__(func, var, *args, context: @context)
-        end
+        return Macro.__send__(func, var, *args, context: @context) if Macro.respond_to?(func)
+
         # If e evaluates to a map, then e.f is equivalent to e['f'] (where f is
         # still being used as a meta-variable, e.g. the expression x.foo is equivalent
         # to the expression x['foo'] when x evaluates to a map).
@@ -129,7 +128,7 @@ module Cel
       when :has, :size
         Macro.__send__(func, *args)
       when :matches
-        Macro.__send__(func, *args.map(&method(:call)))
+        Macro.__send__(func, *args.map { |arg| call(arg) })
       when :int, :uint, :string, :double, :bytes # :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))

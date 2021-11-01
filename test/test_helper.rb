@@ -14,9 +14,7 @@ require "minitest/autorun"
 
 if ENV.key?("PARALLEL")
   require "minitest/hell"
-  class Minitest::Test
-    parallelize_me!
-  end
+  Minitest::Test.parallelize_me!
 end
 
 require "cel"

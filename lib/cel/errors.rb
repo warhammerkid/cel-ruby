@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cel
   class Error < StandardError; end
 

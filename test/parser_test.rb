@@ -39,7 +39,7 @@ class CelParserTest < Minitest::Test
     assert_equal parser.parse("[1]"), [1]
     assert_equal parser.parse("[1, 2, 3]"), [1, 2, 3]
     assert_equal parser.parse("[1, 2, 3, 4, 5.0]"), [1, 2, 3, 4, 5.0]
-    assert_equal parser.parse("{a: 1, b: 2, c: 3}"), {a: 1, b: 2, c: 3}
+    assert_equal parser.parse("{a: 1, b: 2, c: 3}"), { a: 1, b: 2, c: 3 }
   end
 
   def test_funcall
@@ -56,12 +56,12 @@ class CelParserTest < Minitest::Test
     [
       ["123", [:tINT, 123]],
       ["-123", [:tINT, -123]],
-      ["12345", [:tINT, 12345]],
+      ["12345", [:tINT, 12_345]],
       ["1.2", [:tDOUBLE, 1.2]],
       ["1e2", [:tDOUBLE, 100.0]],
       ["-1.2e2", [:tDOUBLE, -120.0]],
       ["-12u", [:tUINT, 12]],
-      ["0xa123", [:tINT, 41251]]
+      ["0xa123", [:tINT, 41_251]],
     ]
   end
 
@@ -72,7 +72,7 @@ class CelParserTest < Minitest::Test
       [%('''x''x'''), "x''x"], # String of four characters "x''x"
       [%("\\""), "\""], # String of one double-quote character
       [%("\\"), "\\"], # String of one backslash character
-      [%(r"\\"), "\\\\"] # String of two backslash characters
+      [%(r"\\"), "\\\\"], # String of two backslash characters
     ]
   end
 
@@ -85,7 +85,7 @@ class CelParserTest < Minitest::Test
       # [%Q{"\377"}, "ÿ"], # String of "ÿ" (code point 255)
       [%(b"\377"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
       # [%Q{"\xFF"}, "ÿ"], # String of "ÿ" (code point 255)
-      [%(b"\xFF"), [255]] # Sequence of byte 255 (not UTF-8 of ÿ)
+      [%(b"\xFF"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
     ]
   end
 end

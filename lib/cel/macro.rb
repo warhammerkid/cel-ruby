@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cel
   module Macro
     module_function
@@ -8,7 +10,8 @@ module Cel
     # If e evaluates to a protocol buffers version 3 message and f is a defined field:
     #     If f is a repeated field or map field, has(e.f) indicates whether the field is non-empty.
     #     If f is a oneof or singular message field, has(e.f) indicates whether the field is set.
-    #     If f is some other singular field, has(e.f) indicates whether the field's value is its default value (zero for numeric fields, false for booleans, empty for strings and bytes).
+    #     If f is some other singular field, has(e.f) indicates whether the field's value is its default
+    #       value (zero for numeric fields, false for booleans, empty for strings and bytes).
     def has(invoke)
       var = invoke.var
       func = invoke.func

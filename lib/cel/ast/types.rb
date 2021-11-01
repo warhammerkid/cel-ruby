@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cel
   class Type
     def initialize(type)
@@ -69,7 +71,7 @@ module Cel
 
   # Primitive Cel Types
 
-  PRIMITIVE_TYPES = %i[int uint double bool string bytes list map null_type type]
+  PRIMITIVE_TYPES = %i[int uint double bool string bytes list map null_type type].freeze
   TYPES = PRIMITIVE_TYPES.map { |typ| [typ, Type.new(typ)] }.to_h
   TYPES[:type] = Type.new(:type)
   TYPES[:any] = Type.new(:any)

@@ -21,8 +21,9 @@ Gem::Specification.new do |spec|
     "changelog_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby/-/blob/master/CHANGELOG.md",
     # "documentation_uri" => "https://honeyryderchuck.gitlab.io/cel-ruby/rdoc/",
     "source_code_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
-    "homepage_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby"
+    "homepage_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
   }
+  spec.required_ruby_version = ">= 2.4"
 
   spec.files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md", "lib/**/*.rb", "sig/**/*.rbs"]
   spec.extra_rdoc_files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md"]

@@ -8,15 +8,10 @@ gemspec
 gem "rake", "~> 13.0"
 
 gem "pry-byebug", platform: :mri
-gem "standard"
+gem "rubocop"
+gem "rubocop-performance"
 
-if RUBY_VERSION < "2.2"
-  gem "simplecov", "< 0.11.0"
-elsif RUBY_VERSION < "2.3"
-  gem "simplecov", "< 0.11.0"
-elsif RUBY_VERSION < "2.4"
-  gem "simplecov", "< 0.19.0"
-elsif RUBY_VERSION < "2.5"
+if RUBY_VERSION < "2.5"
   gem "simplecov", "< 0.21.0"
 else
   gem "simplecov"

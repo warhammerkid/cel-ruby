@@ -9,6 +9,11 @@ Rake::TestTask.new do |t|
   t.warning = false
 end
 
-require "standard/rake"
+begin
+  require "rubocop/rake_task"
+  desc "Run rubocop"
+  RuboCop::RakeTask.new
+rescue LoadError # rubocop:disable Lint/SuppressedException
+end
 
 task default: %i[test]
