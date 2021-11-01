@@ -41,7 +41,7 @@ module Cel
 
     # For a message, the field names are identifiers.
     def check(struct)
-      return if struct.each_key.all? { |key| key.is_a?(Identifier) }
+      return if struct.each_key.all?(Identifier)
 
       raise Error, "#{struct} is invalid (keys must be identifiers)"
     end

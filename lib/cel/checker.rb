@@ -316,7 +316,7 @@ module Cel
       raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end
 
-    def unsupported_type(op, _type)
+    def unsupported_type(op)
       raise NoMatchingOverloadError, op
     end
 

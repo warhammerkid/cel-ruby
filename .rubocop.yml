@@ -79,6 +79,5 @@ Style/StringLiterals:
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
-# TODO: remove when ruby 2.4 is removed
 Performance/RedundantEqualityComparisonBlock:
   Enabled: false
