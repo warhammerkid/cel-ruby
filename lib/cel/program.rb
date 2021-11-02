@@ -79,7 +79,7 @@ module Cel
       func = invoke.func
       args = invoke.args
 
-      return evaluate_standard_func(func, args) unless var
+      return evaluate_standard_func(invoke) unless var
 
       var = case var
             when Identifier
@@ -120,10 +120,16 @@ module Cel
       call(condition.if) ? call(condition.then) : call(condition.else)
     end
 
-    def evaluate_standard_func(func, args)
+    def evaluate_standard_func(funcall)
+      func = funcall.func
+      args = funcall.args
+
       case func
       when :type
-        call(args.first).type
+        val = call(args.first)
+        return val.type if val.respond_to?(:type)
+
+        val.class
       # MACROS
       when :has, :size
         Macro.__send__(func, *args)
@@ -135,7 +141,7 @@ module Cel
       when :dyn
         call(args.first)
       else
-        raise Error, "#{func} is not supported"
+        raise Error, "#{funcall} is not supported"
       end
     end
   end
