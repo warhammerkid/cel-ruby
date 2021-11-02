@@ -2,7 +2,7 @@
 
 require_relative "test_helper"
 
-class CelParserTest < Minitest::Test
+class CelParseTest < Minitest::Test
   def test_token_parsing
     number_tokens.each do |input, expected|
       parser = Cel::Parser.new

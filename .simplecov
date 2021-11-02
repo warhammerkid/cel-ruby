@@ -6,5 +6,5 @@ SimpleCov.start do
   add_filter "/vendor/"
   add_filter "/test/"
   coverage_dir "coverage"
-  minimum_coverage 90
+  minimum_coverage 85
 end
