@@ -1,44 +1,148 @@
 class Cel::Parser
-
+  token tINT tUINT tDOUBLE tBOOL tNULL tSTRING tBYTES tRESERVED tIDENTIFIER
+        tMULTIOP tADDOP tRELOP tANDOP tOROP tEOF
   prechigh
     nonassoc UMINUS
-    left '*' '/'
-    left '+' '-'
+    left tMULTIOP
+    left tADDOP
+    left tRELOP
+    left tANDOP
+    left tOROP
   preclow
 rule
-  target: exp
-        | /* none */ { result = 0 }
-  
-  exp: exp '+' exp { result += val[2] }
-     | exp '-' exp { result -= val[2] }
-     | exp '*' exp { result *= val[2] }
-     | exp '/' exp { result /= val[2] }
-     | '(' exp ')' { result = val[1] }
-     | '-' NUMBER  =UMINUS { result = -val[1] }
-     | NUMBER
+  target: expr eof
+        | eof
+  eof: tEOF
+
+
+  expr: conditional_or "?" conditional_or ":" expr { result = Cel::Condition.new(val[0], val[2], val[4]) }
+      | conditional_or
+
+  conditional_or: conditional_or tOROP conditional_and { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+                | conditional_and
+
+  conditional_and: conditional_and tANDOP relation { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+                 | relation
+
+  relation: relation tRELOP addition { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+          | addition
+
+  addition: addition tADDOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+          | multiplication
+
+  multiplication: multiplication tMULTIOP unary { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+                | unary
+
+
+  unary: member
+       | "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
+       | "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
+
+  negated_member: "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
+                | member
+
+  negative_member: "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
+                | member
+
+  member: primary
+        | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
+        | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: Array(val[4])) }
+        | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
+        | member '{' maybe_field_inits '}' { result = Cel::Message.new(val[0], val[2]) }
+
+
+  primary:  identifier { result = Cel::Identifier.new(val[0]) }
+         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: Array(val[2])) }
+         | '(' expr ')' { result = Cel::Group.new(val[1]) }
+         | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
+         | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }
+         | literal
+
+  identifier: tIDENTIFIER
+            | '.' tIDENTIFIER
+
+  maybe_expr_list: expr_list
+                 | { result = nil }
+
+  maybe_map_inits: { result = nil }
+                 | map_inits
+
+  expr_list: expr_list ',' expr { result = Array(val[0]) << val[2] }
+           | expr { [val[0]] }
+
+  maybe_field_inits: { result = nil }
+                   | field_inits
+
+  field_inits: field_inits ',' tIDENTIFIER ":" expr
+             | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0]) => val[2] } }
+
+  map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
+           | expr ':' expr { result = { val[0] => val[2] } }
+
+  literal: tINT { result = Cel::Number.new(:int, val[0]) }
+         | tUINT { result = Cel::Number.new(:uint, val[0]) }
+         | tDOUBLE { result = Cel::Number.new(:double, val[0]) }
+         | tBOOL { result = Cel::Bool.new(val[0]) }
+         | tNULL { result = Cel::Null.new() }
+         | tSTRING { result = Cel::String.new(val[0]) }
+         | tBYTES { result = Cel::Bytes.new(val[0]) }
+
 end
 ---- header
 require 'strscan'
+require 'bigdecimal'
+require 'cel/ast/elements'
 ---- inner
 
+
+
+OPERATORS = if RUBY_VERSION < "2.7.0"
+  {
+    "&&" => :tANDOP,
+    "||" => :tOROP
+  }.merge(Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
+   .merge(Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }])
+   .merge(Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
+else
+  {
+    **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+    **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
+    **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
+    "&&" => :tANDOP,
+    "||" => :tOROP
+  }
+end.freeze
+
+OPERATORS_RE = Regexp.union(*OPERATORS.keys)
+
 RESERVED = %W[
- in
 as break const continue else
 for function if import let
 loop package namespace return
 var void while
-]
+].freeze
 
-RESERVED_REGEX = Regexp.union(*RESERVED)
+IDENTIFIER_REGEX = /[a-zA-Z][_a-zA-Z0-9]*/
 
 STRING_LIT_REGEX = Regexp.union(
   /"""(?~""")*"""/,
   /'''(?~''')*'''/,
-  /"(\"|[^"])*"/,
-  /'(\'|[^'])*'/,
+  /"(\\"|[^"])*"/,
+  /'(\\'|[^'])*'/,
+)
+
+NUMBER_REGEX = Regexp.union(
+  /(0x[0-9a-fA-F]+)[uU]?/, # hexadecimal
+  /(\d+)[uU]/, # uinteger
+  /((\d*\.\d+)|\d+)([eE][+\-]?\d+)?/, # integer, float, exponent
 )
 
 def parse(str)
+  tokenize(str)
+  do_parse
+end
+
+def tokenize(str)
   str.force_encoding(Encoding::BINARY) unless str.valid_encoding?
 
   scanner = StringScanner.new(str)
@@ -51,12 +155,10 @@ def parse(str)
       # skip whitespace
     when scanner.scan(/#(( *)|( ?(?<string>.*)))\n/)
       # skip comment lines
-    when scanner.scan(/\-?((0x[0-9a-fA-F]+[uU]?)|\d+[uU])/) # uint/int integer
-      @q << [:tNUMBER, scanner.matched]
-    when scanner.scan(/\-?(\d+|(\d*(\.\d+)))([eE][+\-]?\d+)?/) # float, integer
-      @q << [:tNUMBER, scanner.matched]
+    when scanner.scan(/\-?#{NUMBER_REGEX}/)
+      @q << convert_to_number(scanner)
     when scanner.scan(/true|false/)
-      @q << [:tBOOL, scanner.matched]
+      @q << [:tBOOL, scanner.matched == "true"]
     when scanner.scan(/null/)
       @q << [:tNULL]
     when scanner.scan(/[bB]?[rR]?#{STRING_LIT_REGEX}/) # string
@@ -75,14 +177,27 @@ def parse(str)
       #                    when '\\"' then '"'
       #                    end
       #                  end
-      
+
       # s = scanner.matched.yield_self {|s| s[1, s.length - 2] }.gsub(/\\'/, "'")
 
-      @q << [:tSTRING, scanner.matched]
-    when scanner.scan(RESERVED_REGEX)
-      @q << [:tRESERVED, scanner.matched]
-    when scanner.scan(/[a-zA-Z][_a-zA-Z0-9]*/)
-      @q << [:tIDENTIFIER, scanner.matched]
+      str = scanner.matched
+
+      @q << if str.start_with?("b")
+        [:tBYTES, convert_to_bytes(str.byteslice(2..-2))]
+      else
+        [:tSTRING, convert_to_string(str)]
+      end
+    when scanner.scan(IDENTIFIER_REGEX)
+      word = scanner.matched
+      if RESERVED.include?(word)
+        @q << [:tRESERVED, scanner.matched]
+      elsif word == "in"
+        @q << [OPERATORS[scanner.matched], scanner.matched]
+      else
+        @q << [:tIDENTIFIER, scanner.matched]
+      end
+    when scanner.scan(OPERATORS_RE)
+      @q << [OPERATORS[scanner.matched], scanner.matched]
     when scanner.scan(/\A.|\n/o)
       s = scanner.matched
       @q << [s, s]
@@ -90,69 +205,153 @@ def parse(str)
       puts "fuckness"
     end
   end
-  @q << [false, '$end']
-  puts @q.inspect
-  # do_parse
+  @q << [:tEOF, false]
 end
 
 def next_token
   @q.shift
 end
 
-def convert_to_number(str)
+def convert_to_number(scanner)
+  matched = scanner.matched
+  hexa, uint, number, floating, exp = scanner.captures
+
+  if !hexa.empty?
+    return [:tINT, hexa.to_i(16)]
+  end
+
+  if !uint.empty?
+    return [:tUINT, Integer(uint)]
+  end
+
+  if !exp.empty?
+    # third matched group, can only be a floating exponential, let's convert tout suite
+    [:tDOUBLE, BigDecimal(matched)]
+  elsif !floating.empty?
+    if number == floating || floating.start_with?(".")
+      [:tDOUBLE, Float(matched)]
+    elsif number.empty?
+      [:tDOUBLE, BigDecimal(matched)]
+    end
+  else
+    if matched[-1].downcase == "u"
+      [:tINT, Integer(matched[0..-2]).abs]
+    else
+      [:tINT, Integer(matched)]
+    end
+  end
 end
 
+TRIPE_DOUBLE_QUOTES = %Q{"""}
+TRIPE_SINGLE_QUOTES = %Q{'''}
+
 def convert_to_string(str)
+
+  if str.start_with?("r")
+    # If preceded by an r or R character, the string is a raw string
+    # and does not interpret escape sequences.
+    str = str.byteslice(2..-2).inspect.byteslice(1..-2)
+    return str
+  end
+
+  if str.size > 6 && (
+    (str.start_with?(TRIPE_DOUBLE_QUOTES) && str.end_with?(TRIPE_DOUBLE_QUOTES)) ||
+    (str.start_with?(TRIPE_SINGLE_QUOTES) && str.end_with?(TRIPE_SINGLE_QUOTES)))
+    str = str.byteslice(3..-4)
+  else
+    str = str.byteslice(1..-2)
+  end
+
+  cleanup_escape_sequences(str)
+end
+
+def convert_to_bytes(str)
+  str.unpack("C*")
+end
+
+
+BIN_ESCAPE = /\\([0-3][0-7][0-7])/
+HEX_ESCAPE = /\\x([0-9a-fA-F]{2})/
+BPM_ESCAPE = /\\u([0-9a-fA-F]{4})/
+UNICODE_ESCAPE = /\\u([0-9a-fA-F]{4})/
+WHITESPACE_ESCAPE = /\\([bfnrt"'\\])/
+ESCAPE_UNION = Regexp.union(BIN_ESCAPE, HEX_ESCAPE, BPM_ESCAPE, WHITESPACE_ESCAPE)
+# For the sake of a readable representation, the escape sequences (ESCAPE) are kept
+# implicit in string tokens. This means that strings without the r or R (raw) prefix
+# process ESCAPE sequences, while in strings with the raw prefix they stay uninterpreted.
+# See documentation of string literals below.
+def cleanup_escape_sequences(str)
+  str.gsub!(ESCAPE_UNION) do |match|
+    case match
+    when /\\"/
+      "\""
+    when BIN_ESCAPE
+      # For strings, it denotes the unicode code point.
+      Regexp.last_match(1).to_i.chr(Encoding::UTF_8)
+    when HEX_ESCAPE
+      # For strings, it denotes the unicode code point.
+      Regexp.last_match(1).hex.chr(Encoding::UTF_8)
+    when BPM_ESCAPE
+      Regexp.last_match(1).hex.chr(Encoding::BPM)
+    when UNICODE_ESCAPE
+      # encoding a Unicode code point. Valid only for string literals.
+      Regexp.last_match(1).hex.chr(Encoding::UTF_8)
+    when WHITESPACE_ESCAPE
+      Regexp.last_match(0)
+    end
+  end
+  str
 end
 
 ---- footer
 
-if $0 == __FILE__
-  examples = <<EOS
-123
-12345
-1.2
-1e2
--1.2e2
-12u
-0xa123
-""
-'""'
-'''x''x'''
-"\""
-"\\"
-r"\\"
-b"abc"
-b"ÿ"
-b"\303\277"
-"\303\277"
-"\377"
-b"\377"
-"\xFF"
-b"\xFF"
+# if $0 == __FILE__
+#   examples = <<EOS
+# 123
+# 12345
+# 1.2
+# 1e2
+# -1.2e2
+# 12u
+# 0xa123
+# ""
+# '""'
+# '''x''x'''
+# "\""
+# "\\"
+# r"\\"
+# b"abc"
+# b"ÿ"
+# b"\303\277"
+# "\303\277"
+# "\377"
+# b"\377"
+# "\xFF"
+# b"\xFF"
 
-1 + 2
-3 - 2
-" Some String with \"escapes\""
-'another string'
-a.b.c == 1
-d > 2
-a.b.c * 3 == 1 && d > 2
-a.b.c
-wiri
-// a.driving_license = "CA"
-// 1 = 2
-// 2 = "a"
-// a.b.c > "a"
-EOS
-  puts 'Parsing...'
-  parser = Cel::Parser.new
-  examples.each_line do |line|
-    puts "line: #{line.inspect}"
-    puts parser.parse(line)
-  end
-end
+# 1 + 2
+# 3 - 2
+# " Some String with \"escapes\""
+# 'another string'
+# a.b.c == 1
+# d > 2
+# a.b.c * 3 == 1 && d > 2
+# a.b.c
+# wiri
+# // a.driving_license = "CA"
+# // 1 = 2
+# // 2 = "a"
+# // a.b.c > "a"
+# EOS
+#   puts 'Parsing...'
+#   parser = Cel::Parser.new
+#   examples.each_line do |line|
+#     puts "line: #{line.inspect}"
+#     puts parser.parse(line)
+#   end
+# end
 
+# The grammar of CEL is defined below, using | for alternatives, [] for optional, {} for repeated, and () for grouping.
 # Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
 # ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;
 # ConditionalAnd = [ConditionalAnd "&&"] Relation ;
