@@ -16,4 +16,15 @@ begin
 rescue LoadError # rubocop:disable Lint/SuppressedException
 end
 
+namespace :coverage do
+  desc "Aggregates coverage reports"
+  task :report do
+    return unless ENV.key?("CI")
+
+    require "simplecov"
+
+    SimpleCov.collate Dir["coverage/**/.resultset.json"]
+  end
+end
+
 task default: %i[test]

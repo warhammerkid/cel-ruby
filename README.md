@@ -1,6 +1,10 @@
 # Cel::Ruby
 
-Pure Python implementation of Google Common Expression Language, https://opensource.google/projects/cel.
+[![Gem Version](https://badge.fury.io/rb/cel.svg)](http://rubygems.org/gems/cel)
+[![pipeline status](https://gitlab.com/honeyryderchuck/cel-ruby/badges/master/pipeline.svg)](https://gitlab.com/honeyryderchuck/cel-ruby/pipelines?page=1&scope=all&ref=master)
+[![coverage report](https://gitlab.com/honeyryderchuck/cel-ruby/badges/master/coverage.svg?job=coverage)](https://honeyryderchuck.gitlab.io/cel-ruby/coverage/#_AllFiles)
+
+Pure Ruby implementation of Google Common Expression Language, https://opensource.google/projects/cel.
 
 > The Common Expression Language (CEL) implements common semantics for expression evaluation, enabling different applications to more easily interoperate.
 
