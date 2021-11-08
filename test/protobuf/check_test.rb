@@ -7,6 +7,7 @@ class CelProtobufCheckTest < Minitest::Test
   def test_literal_expression
     assert_equal environment.check("timestamp('2009-02-13T23:31:30Z')"), Google::Protobuf::Timestamp
     assert_equal environment.check("duration('123s')"), Google::Protobuf::Duration
+    assert_equal environment.check("duration('123s').seconds"), :int
   end
 
   def test_type_literal

@@ -74,8 +74,7 @@ module Cel
       end
     end
 
-    def evaluate_invoke(invoke)
-      var = invoke.var
+    def evaluate_invoke(invoke, var = invoke.var)
       func = invoke.func
       args = invoke.args
 

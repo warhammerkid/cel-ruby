@@ -105,20 +105,20 @@ module Cel
       end
     end
 
-    def check_invoke(funcall)
+    def check_invoke(funcall, var_type = nil)
       var = funcall.var
       func = funcall.func
       args = funcall.args
 
       return check_standard_func(funcall) unless var
 
-      var_type = case var
-                 when Identifier
-                   check_identifier(var)
-                 when Invoke
-                   check_invoke(var)
-                 else
-                   var.type
+      var_type ||= case var
+                   when Identifier
+                     check_identifier(var)
+                   when Invoke
+                     check_invoke(var)
+                   else
+                     var.type
       end
 
       case var_type
@@ -262,6 +262,8 @@ module Cel
       return TYPES[:any] unless id_type
 
       identifier.type = id_type
+
+      id_type
     end
 
     def check_condition(condition)
