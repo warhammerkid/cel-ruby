@@ -91,7 +91,7 @@ module Cel
 
       case var
       when String
-        raise Error, "#{invoke} is not supported" unless String.method_defined?(func, false)
+        raise EvaluateError, "#{invoke} is not supported" unless String.method_defined?(func, false)
 
         var.public_send(func, *args)
       when Message
@@ -111,7 +111,7 @@ module Cel
         var.public_send(func, *args) :
         var.public_send(func)
       else
-        raise Error, "#{invoke} is not supported"
+        raise EvaluateError, "#{invoke} is not supported"
       end
     end
 
@@ -140,7 +140,7 @@ module Cel
       when :dyn
         call(args.first)
       else
-        raise Error, "#{funcall} is not supported"
+        raise EvaluateError, "#{funcall} is not supported"
       end
     end
   end

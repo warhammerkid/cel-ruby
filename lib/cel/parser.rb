@@ -60,6 +60,10 @@ NUMBER_REGEX = Regexp.union(
 def parse(str)
   tokenize(str)
   do_parse
+rescue Racc::ParseError => err
+  ex = Cel::ParseError.new(err.message)
+  ex.set_backtrace(err.backtrace)
+  raise ex
 end
 
 def tokenize(str)
@@ -122,7 +126,7 @@ def tokenize(str)
       s = scanner.matched
       @q << [s, s]
     else
-      puts "fuckness"
+      raise ParseError, "unexpected value: #{scanner.string}"
     end
   end
   @q << [:tEOF, false]

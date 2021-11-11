@@ -140,7 +140,7 @@ module Cel
             when "ns"
               nanos += Cel.to_numeric(duration)
             else
-              raise Error, "#{units} is unsupported"
+              raise EvaluateError, "#{units} is unsupported"
             end
           end
           return Google::Protobuf::Duration.new(seconds: seconds, nanos: nanos)

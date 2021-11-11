@@ -29,7 +29,7 @@ module Cel
         Bool.new(var.respond_to?(func))
       else
         # In all other cases, has(e.f) evaluates to an error.
-        raise Error, "#{invoke} is not supported"
+        raise EvaluateError, "#{invoke} is not supported"
       end
     end
 

@@ -3,7 +3,13 @@
 module Cel
   class Error < StandardError; end
 
-  class NoSuchFieldError < Error
+  class ParseError < Error; end
+
+  class CheckError < Error; end
+
+  class EvaluateError < Error; end
+
+  class NoSuchFieldError < EvaluateError
     attr_reader :code
 
     def initialize(var, attrib)
@@ -12,7 +18,7 @@ module Cel
     end
   end
 
-  class NoMatchingOverloadError < Error
+  class NoMatchingOverloadError < CheckError
     attr_reader :code
 
     def initialize(op)

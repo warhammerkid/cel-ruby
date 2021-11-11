@@ -294,7 +294,7 @@ module Cel
       when Symbol
         Types[typ]
       else
-        raise Error, "can't convert #{typ}"
+        raise CheckError, "can't convert #{typ}"
       end
     end
 
@@ -315,7 +315,7 @@ module Cel
     def check_arity(func, args, arity)
       return if args.size == arity
 
-      raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
+      raise CheckError, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end
 
     def unsupported_type(op)
@@ -323,7 +323,7 @@ module Cel
     end
 
     def unsupported_operation(op)
-      raise Error, "unsupported operation (#{op})"
+      raise CheckError, "unsupported operation (#{op})"
     end
   end
 end
