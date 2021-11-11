@@ -289,12 +289,10 @@ module Cel
 
     def convert(typ)
       case typ
-      when Type
-        typ
       when Symbol
         Types[typ]
       else
-        raise CheckError, "can't convert #{typ}"
+        typ
       end
     end
 

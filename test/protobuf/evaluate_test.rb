@@ -10,6 +10,8 @@ class CelProtobufEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("duration('123s')"), Google::Protobuf::Duration.new(seconds: 123)
     assert_equal environment.evaluate("duration('123s').seconds"), Cel::Number.new(:int, 123)
     assert_equal environment.evaluate("google.protobuf.Duration{seconds: 123}.seconds"), Cel::Number.new(:int, 123)
+    assert_equal environment.evaluate("duration.seconds", duration: Google::Protobuf::Duration.new(seconds: 123)),
+                 Cel::Number.new(:int, 123)
   end
 
   def test_type_literal
