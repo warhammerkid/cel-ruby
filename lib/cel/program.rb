@@ -74,12 +74,11 @@ module Cel
       end
     end
 
-    def evaluate_invoke(invoke)
-      var = invoke.var
+    def evaluate_invoke(invoke, var = invoke.var)
       func = invoke.func
       args = invoke.args
 
-      return evaluate_standard_func(func, args) unless var
+      return evaluate_standard_func(invoke) unless var
 
       var = case var
             when Identifier
@@ -92,7 +91,7 @@ module Cel
 
       case var
       when String
-        raise Error, "#{invoke} is not supported" unless String.method_defined?(func, false)
+        raise EvaluateError, "#{invoke} is not supported" unless String.method_defined?(func, false)
 
         var.public_send(func, *args)
       when Message
@@ -112,7 +111,7 @@ module Cel
         var.public_send(func, *args) :
         var.public_send(func)
       else
-        raise Error, "#{invoke} is not supported"
+        raise EvaluateError, "#{invoke} is not supported"
       end
     end
 
@@ -120,10 +119,16 @@ module Cel
       call(condition.if) ? call(condition.then) : call(condition.else)
     end
 
-    def evaluate_standard_func(func, args)
+    def evaluate_standard_func(funcall)
+      func = funcall.func
+      args = funcall.args
+
       case func
       when :type
-        call(args.first).type
+        val = call(args.first)
+        return val.type if val.respond_to?(:type)
+
+        val.class
       # MACROS
       when :has, :size
         Macro.__send__(func, *args)
@@ -135,7 +140,7 @@ module Cel
       when :dyn
         call(args.first)
       else
-        raise Error, "#{func} is not supported"
+        raise EvaluateError, "#{funcall} is not supported"
       end
     end
   end

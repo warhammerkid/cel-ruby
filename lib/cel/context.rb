@@ -7,12 +7,12 @@ module Cel
     end
 
     def lookup(identifier)
-      raise Error, "no value in context for #{identifier}" unless @bindings
+      raise EvaluateError, "no value in context for #{identifier}" unless @bindings
 
       id = identifier.id
       val = @bindings.dig(*id.split(".").map(&:to_sym))
 
-      raise Error, "no value in context for #{identifier}" unless val
+      raise EvaluateError, "no value in context for #{identifier}" unless val
 
       val
     end

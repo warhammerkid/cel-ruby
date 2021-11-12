@@ -46,6 +46,12 @@ class CelParseTest < Minitest::Test
     assert_equal parser.parse("type(1)"), [:type, [1]]
   end
 
+  def test_error
+    assert_raises(Cel::ParseError) do
+      parser.parse("< 1 2")
+    end
+  end
+
   private
 
   def parser

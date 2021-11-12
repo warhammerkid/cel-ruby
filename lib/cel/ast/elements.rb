@@ -43,7 +43,7 @@ module Cel
     def check(struct)
       return if struct.each_key.all?(Identifier)
 
-      raise Error, "#{struct} is invalid (keys must be identifiers)"
+      raise CheckError, "#{struct} is invalid (keys must be identifiers)"
     end
   end
 
@@ -277,7 +277,7 @@ module Cel
     def check
       return if @value.each_key.all? { |key| ALLOWED_TYPES.include?(key.type) }
 
-      raise Error, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
+      raise CheckError, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
     end
   end
 

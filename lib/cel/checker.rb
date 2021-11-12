@@ -105,20 +105,20 @@ module Cel
       end
     end
 
-    def check_invoke(funcall)
+    def check_invoke(funcall, var_type = nil)
       var = funcall.var
       func = funcall.func
       args = funcall.args
 
       return check_standard_func(funcall) unless var
 
-      var_type = case var
-                 when Identifier
-                   check_identifier(var)
-                 when Invoke
-                   check_invoke(var)
-                 else
-                   var.type
+      var_type ||= case var
+                   when Identifier
+                     check_identifier(var)
+                   when Invoke
+                     check_invoke(var)
+                   else
+                     var.type
       end
 
       case var_type
@@ -262,6 +262,8 @@ module Cel
       return TYPES[:any] unless id_type
 
       identifier.type = id_type
+
+      id_type
     end
 
     def check_condition(condition)
@@ -287,12 +289,10 @@ module Cel
 
     def convert(typ)
       case typ
-      when Type
-        typ
       when Symbol
         Types[typ]
       else
-        raise Error, "can't convert #{typ}"
+        typ
       end
     end
 
@@ -313,7 +313,7 @@ module Cel
     def check_arity(func, args, arity)
       return if args.size == arity
 
-      raise Error, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
+      raise CheckError, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end
 
     def unsupported_type(op)
@@ -321,7 +321,7 @@ module Cel
     end
 
     def unsupported_operation(op)
-      raise Error, "unsupported operation (#{op})"
+      raise CheckError, "unsupported operation (#{op})"
     end
   end
 end
