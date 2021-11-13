@@ -152,8 +152,23 @@ module Cel
         evaluate_standard_func_without_protobuf(funcall)
       end
     end
+
+    module ContextExtensions
+      def self.included(klass)
+        super
+        klass.alias_method :to_cel_type_without_protobuf, :to_cel_type
+        klass.alias_method :to_cel_type, :to_cel_type_with_protobuf
+      end
+
+      def to_cel_type_with_protobuf(v)
+        return v if v.is_a?(Google::Protobuf::MessageExts)
+
+        to_cel_type_without_protobuf(v)
+      end
+    end
   end
 
   Checker.include(Protobuf::CheckExtensions)
   Program.include(Protobuf::EvaluateExtensions)
+  Context.include(Protobuf::ContextExtensions)
 end
