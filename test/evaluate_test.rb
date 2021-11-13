@@ -109,6 +109,17 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("'helloworld'.matches('[0-9]+')"), false
   end
 
+  def test_bindings
+    assert_equal environment.evaluate("a", { a: true }), true
+    assert_equal environment.evaluate("a", { a: 2 }), 2
+    assert_equal environment.evaluate("a", { a: 1.2 }), 1.2
+    assert_equal environment.evaluate("a", { a: "a" }), "a"
+    assert_equal environment.evaluate("a[0]", { a: [1, 2, 3] }), 1
+    assert_equal environment.evaluate("a", { a: [1, 2, 3] }), [1, 2, 3]
+    assert_equal environment.evaluate("a.b", { a: { "b" => 2 } }), 2
+    assert_equal environment.evaluate("a", { a: { "b" => 2 } }), { "b" => 2 }
+  end
+
   def test_the_mothership
     program = environment.program(<<-EXPR
       account.balance >= transaction.withdrawal
@@ -118,24 +129,24 @@ class CelEvaluateTest < Minitest::Test
                                  )
 
     assert_equal program.evaluate(
-      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
-      transaction: Cel::Map.new(withdrawal: 10)
+      account: { balance: 100, overdraftProtection: false, overdraftLimit: 10 },
+      transaction: { withdrawal: 10 }
     ), true
     assert_equal program.evaluate(
-      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
-      transaction: Cel::Map.new(withdrawal: 100)
+      account: { balance: 100, overdraftProtection: false, overdraftLimit: 10 },
+      transaction: { withdrawal: 100 }
     ), true
     assert_equal program.evaluate(
-      account: Cel::Map.new(balance: 100, overdraftProtection: false, overdraftLimit: 10),
-      transaction: Cel::Map.new(withdrawal: 101)
+      account: { balance: 100, overdraftProtection: false, overdraftLimit: 10 },
+      transaction: { withdrawal: 101 }
     ), false
     assert_equal program.evaluate(
-      account: Cel::Map.new(balance: 100, overdraftProtection: true, overdraftLimit: 10),
-      transaction: Cel::Map.new(withdrawal: 110)
+      account: { balance: 100, overdraftProtection: true, overdraftLimit: 10 },
+      transaction: { withdrawal: 110 }
     ), true
     assert_equal program.evaluate(
-      account: Cel::Map.new(balance: 100, overdraftProtection: true, overdraftLimit: 10),
-      transaction: Cel::Map.new(withdrawal: 111)
+      account: { balance: 100, overdraftProtection: true, overdraftLimit: 10 },
+      transaction: { withdrawal: 111 }
     ), false
     #     assert_equal(
     #       environment.check(<<-EXPR

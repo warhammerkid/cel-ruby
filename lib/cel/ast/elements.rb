@@ -89,11 +89,7 @@ module Cel
       @value == other || super
     end
 
-    private
-
-    def check; end
-
-    def to_cel_type(val)
+    def self.to_cel_type(val)
       case val
       when Literal, Identifier
         val
@@ -118,6 +114,10 @@ module Cel
         raise Error, "can't convert #{val} to CEL type"
       end
     end
+
+    private
+
+    def check; end
   end
 
   class Number < Literal
@@ -227,7 +227,7 @@ module Cel
   class List < Literal
     def initialize(value)
       value = value.map do |v|
-        to_cel_type(v)
+        Literal.to_cel_type(v)
       end
       super(ListType.new(value), value)
     end
@@ -240,7 +240,7 @@ module Cel
   class Map < Literal
     def initialize(value)
       value = value.map do |k, v|
-        [to_cel_type(k), to_cel_type(v)]
+        [Literal.to_cel_type(k), Literal.to_cel_type(v)]
       end.to_h
       super(MapType.new(value), value)
     end
