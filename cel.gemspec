@@ -22,6 +22,7 @@ Gem::Specification.new do |spec|
     # "documentation_uri" => "https://honeyryderchuck.gitlab.io/cel-ruby/rdoc/",
     "source_code_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
     "homepage_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
+    "rubygems_mfa_required" => "true",
   }
   spec.required_ruby_version = ">= 2.6"
 
