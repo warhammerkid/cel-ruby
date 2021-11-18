@@ -285,7 +285,8 @@ module Cel
     def convert(typ)
       case typ
       when Symbol
-        TYPES[typ]
+        TYPES[typ] or
+          raise CheckError, "#{typ} is not aa valid type"
       else
         typ
       end

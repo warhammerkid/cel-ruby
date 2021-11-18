@@ -86,7 +86,7 @@ def tokenize(str)
     when scanner.scan(/true|false/)
       @q << [:tBOOL, scanner.matched == "true"]
     when scanner.scan(/null/)
-      @q << [:tNULL]
+      @q << [:tNULL, nil]
     when scanner.scan(/[bB]?[rR]?#{STRING_LIT_REGEX}/) # string
       # s = scanner.matched.yield_self {|s| s[1, s.length - 2] }
       #                  .gsub(DBL_QUOTE_STR_ESCAPE_SEQUENCES_RE) do |match|
@@ -710,7 +710,7 @@ module_eval(<<'.,.,', 'parser.ry', 48)
 
 module_eval(<<'.,.,', 'parser.ry', 49)
   def _reduce_26(val, _values, result)
-     result = Cel::Invoke.new(var: val[0], func: val[2], args: Array(val[4]))
+     result = Cel::Invoke.new(var: val[0], func: val[2], args: [val[4]].flatten(1))
     result
   end
 .,.,
@@ -738,7 +738,7 @@ module_eval(<<'.,.,', 'parser.ry', 54)
 
 module_eval(<<'.,.,', 'parser.ry', 55)
   def _reduce_30(val, _values, result)
-     result = Cel::Invoke.new(func: val[0], args: Array(val[2]))
+    result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1))
     result
   end
 .,.,

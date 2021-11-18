@@ -26,4 +26,6 @@ module Cel
       @code = :no_matching_overload
     end
   end
+
+  class BindingError < EvaluateError; end
 end

@@ -14,9 +14,12 @@ class CelProtobufEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("duration('1ms').nanos"), Cel::Number.new(:int, 1_000_000)
     assert_equal environment.evaluate("duration('1us').nanos"), Cel::Number.new(:int, 1000)
     assert_equal environment.evaluate("duration('1ns').nanos"), Cel::Number.new(:int, 1)
+    assert_equal environment.evaluate("duration('0.5m').seconds"), Cel::Number.new(:int, 30)
     assert_equal environment.evaluate("google.protobuf.Duration{seconds: 123}.seconds"), Cel::Number.new(:int, 123)
     assert_equal environment.evaluate("duration.seconds", duration: Google::Protobuf::Duration.new(seconds: 123)),
                  Cel::Number.new(:int, 123)
+
+    assert_raises(Cel::EvaluateError) { environment.evaluate("duration('1t').nanos") }
   end
 
   def test_type_literal

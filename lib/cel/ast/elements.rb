@@ -26,23 +26,15 @@ module Cel
     attr_reader :type, :struct
 
     def initialize(type, struct)
-      check(struct)
       @struct = Struct.new(*struct.keys.map(&:to_sym)).new(*struct.values)
-      @type = type.is_a?(Type) ? type : MapType.new(struct)
+      @type = type.is_a?(Type) ? type : MapType.new(struct.map do |k, v|
+                                                      [Literal.to_cel_type(k), Literal.to_cel_type(v)]
+                                                    end.to_h)
       super(@struct)
     end
 
     def field?(key)
       !@type.get(key).nil?
-    end
-
-    private
-
-    # For a message, the field names are identifiers.
-    def check(struct)
-      return if struct.each_key.all?(Identifier)
-
-      raise CheckError, "#{struct} is invalid (keys must be identifiers)"
     end
   end
 
@@ -82,6 +74,7 @@ module Cel
       @type = type.is_a?(Type) ? type : TYPES[type]
       @value = value
       super(value)
+      check
     end
 
     def ==(other)
@@ -110,7 +103,7 @@ module Cel
       when nil
         Null.new
       else
-        raise Error, "can't convert #{val} to CEL type"
+        raise BindingError, "can't convert #{val} to CEL type"
       end
     end
 
@@ -242,6 +235,7 @@ module Cel
         [Literal.to_cel_type(k), Literal.to_cel_type(v)]
       end.to_h
       super(MapType.new(value), value)
+      check
     end
 
     def ==(other)
@@ -269,12 +263,12 @@ module Cel
 
     private
 
-    ALLOWED_TYPES = %i[int uint bool string].freeze
+    ALLOWED_TYPES = %i[int uint bool string].map { |typ| TYPES[typ] }.freeze
 
     # For a map, the entry keys are sub-expressions that must evaluate to values
     # of an allowed type (int, uint, bool, or string)
     def check
-      return if @value.each_key.all? { |key| ALLOWED_TYPES.include?(key.type) }
+      return if @value.each_key.all? { |key| key.is_a?(Identifier) || ALLOWED_TYPES.include?(key.type) }
 
       raise CheckError, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
     end
