@@ -4,7 +4,6 @@ require "delegate"
 
 module Cel
   LOGICAL_OPERATORS = %w[< <= >= > == != in].freeze
-  ADD_OPERATORS = %w[+ -].freeze
   MULTI_OPERATORS = %w[* / %].freeze
 
   class Identifier < SimpleDelegator
@@ -66,7 +65,7 @@ module Cel
     def to_s
       if var
         if func == :[]
-          "#{var}[#{"(#{args.map(&:to_s).join(", ")})" if args}"
+          "#{var}[#{args}]"
         else
           "#{var}.#{func}#{"(#{args.map(&:to_s).join(", ")})" if args}"
         end
@@ -121,7 +120,7 @@ module Cel
   end
 
   class Number < Literal
-    [*ADD_OPERATORS, *MULTI_OPERATORS].each do |op|
+    [:+, :-, *MULTI_OPERATORS].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           Number.new(@type, super)
@@ -189,7 +188,7 @@ module Cel
       OUT
     end
 
-    ADD_OPERATORS.each do |op|
+    %i[+ -].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           String.new(super)
@@ -215,7 +214,7 @@ module Cel
       OUT
     end
 
-    ADD_OPERATORS.each do |op|
+    %i[+ -].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           String.new(@type, super)
@@ -311,6 +310,8 @@ module Cel
     end
 
     def to_s
+      return "#{@op}#{@operands.first}" if @operands.size == 1
+
       @operands.join(" #{@op} ")
     end
   end

@@ -12,6 +12,8 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 < 4"), true
     assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 > 4"), false
     assert_equal environment.evaluate("!false"), true
+    assert_equal environment.evaluate("-123"), -123
+    assert_equal environment.evaluate("-1.2e2"), -1.2e2
 
     assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
     assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false

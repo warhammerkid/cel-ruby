@@ -1,10 +1,10 @@
 class Cel::Parser
   token tINT tUINT tDOUBLE tBOOL tNULL tSTRING tBYTES tRESERVED tIDENTIFIER
-        tMULTIOP tADDOP tRELOP tANDOP tOROP tEOF
+        tMULTIOP tADDOP tSUBOP tRELOP tANDOP tOROP tEOF
   prechigh
     nonassoc UMINUS
     left tMULTIOP
-    left tADDOP
+    left tADDOP tSUBOP
     left tRELOP
     left tANDOP
     left tOROP
@@ -28,6 +28,7 @@ rule
           | addition
 
   addition: addition tADDOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+          | addition tSUBOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
           | multiplication
 
   multiplication: multiplication tMULTIOP unary { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
@@ -36,12 +37,12 @@ rule
 
   unary: member
        | "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
-       | "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
+       | tSUBOP negative_member { result = Cel::Operation.new("-", [val[1]]) }
 
   negated_member: "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
                 | member
 
-  negative_member: "-" negative_member { result = Cel::Operation.new("-", [val[1]]) }
+  negative_member: tSUBOP negative_member { result = Cel::Operation.new("-", [val[1]]) }
                 | member
 
   member: primary
@@ -99,17 +100,19 @@ require 'cel/ast/elements'
 OPERATORS = if RUBY_VERSION < "2.7.0"
   {
     "&&" => :tANDOP,
-    "||" => :tOROP
+    "||" => :tOROP,
+    "+" => :tADDOP,
+    "-" => :tSUBOP,
   }.merge(Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
-   .merge(Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }])
    .merge(Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
 else
   {
     **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
-    **Hash[Cel::ADD_OPERATORS.map{|op| [op, :tADDOP] }],
     **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
     "&&" => :tANDOP,
-    "||" => :tOROP
+    "||" => :tOROP,
+    "+" => :tADDOP,
+    "-" => :tSUBOP,
   }
 end.freeze
 
@@ -159,7 +162,7 @@ def tokenize(str)
       # skip whitespace
     when scanner.scan(/#(( *)|( ?(?<string>.*)))\n/)
       # skip comment lines
-    when scanner.scan(/\-?#{NUMBER_REGEX}/)
+    when scanner.scan(NUMBER_REGEX)
       @q << convert_to_number(scanner)
     when scanner.scan(/true|false/)
       @q << [:tBOOL, scanner.matched == "true"]
