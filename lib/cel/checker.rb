@@ -285,7 +285,7 @@ module Cel
     def convert(typ)
       case typ
       when Symbol
-        Types[typ]
+        TYPES[typ]
       else
         typ
       end
