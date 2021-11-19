@@ -9,12 +9,25 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("'hello' == 'world'"), Cel::TYPES[:bool]
     assert_equal environment.check("1 == 1 || 1 == 2 || 3 > 4"), Cel::TYPES[:bool]
     assert_equal environment.check("1 + 2"), Cel::TYPES[:int]
+    assert_equal environment.check("1 - 2"), Cel::TYPES[:int]
+    assert_equal environment.check("1 * 2"), Cel::TYPES[:int]
+    assert_equal environment.check("1 / 2"), Cel::TYPES[:int]
+    assert_equal environment.check("1 % 2"), Cel::TYPES[:int]
+    assert_equal environment.check("!false"), Cel::TYPES[:bool]
+    assert_equal environment.check("-123"), Cel::TYPES[:int]
+    assert_equal environment.check("-1.2e2"), Cel::TYPES[:double]
 
     assert_kind_of Cel::ListType, environment.check("[1, 2]")
     assert_kind_of Cel::MapType, environment.check("{'a': 2}")
 
     assert_equal environment.check("[1, 2][0]"), Cel::TYPES[:int]
     assert_equal environment.check("Struct{a: 2}.a"), Cel::TYPES[:int]
+
+    assert_raises(Cel::CheckError) { environment.check("[1, 2][2]") }
+    assert_raises(Cel::CheckError) { environment.check("!'bla'") }
+    assert_raises(Cel::CheckError) { environment.check("-12u") }
+    assert_raises(Cel::CheckError) { environment.check("-[1, 2, 3]") }
+    assert_raises(Cel::CheckError) { environment.check("1 + 'a'") }
   end
 
   def test_type_literal
@@ -50,6 +63,10 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("a + 2"), :any
     assert_equal environment.check("a == 2"), Cel::TYPES[:bool]
     assert_equal environment(name: :int).check("a == 2"), Cel::TYPES[:bool]
+    assert_equal environment(a: :map).check("a.b"), Cel::TYPES[:any]
+    assert_equal environment(a: :any).check("a"), Cel::TYPES[:any]
+    assert_equal environment(a: :bool).check("a"), Cel::TYPES[:bool]
+    assert_raises(Cel::CheckError) { environment(a: :blow).check("a") }
   end
 
   def test_condition
@@ -70,12 +87,17 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("'helloworld'.endsWith('world')"), :bool
     assert_equal environment.check("'helloworld'.startsWith('world')"), :bool
     assert_equal environment.check("'helloworld'.matches('lowo')"), :bool
+
+    assert_raises(Cel::CheckError) { environment.check("'helloworld'.matches(1)") }
   end
 
   def test_funcs
     assert_equal environment.check("size(\"helloworld\")"), :int
     assert_equal environment.check("matches('helloworld', 'lowo')"), :bool
     assert_equal environment.check("1 in [1, 2, 3]"), :bool
+    assert_equal environment(arr: :list).check("size(arr)"), Cel::TYPES[:int]
+
+    assert_raises(Cel::CheckError) { environment.check("matches('helloworld', 1)") }
   end
 
   def test_macros_map_filter

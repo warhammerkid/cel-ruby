@@ -61,12 +61,10 @@ class CelParseTest < Minitest::Test
   def number_tokens
     [
       ["123", [:tINT, 123]],
-      ["-123", [:tINT, -123]],
       ["12345", [:tINT, 12_345]],
       ["1.2", [:tDOUBLE, 1.2]],
       ["1e2", [:tDOUBLE, 100.0]],
-      ["-1.2e2", [:tDOUBLE, -120.0]],
-      ["-12u", [:tUINT, 12]],
+      ["12u", [:tUINT, 12]],
       ["0xa123", [:tINT, 41_251]],
     ]
   end

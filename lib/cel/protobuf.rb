@@ -43,6 +43,7 @@ module Cel
 
         type = attribute.type
 
+        # https://github.com/google/cel-spec/blob/master/doc/langdef.md#protocol-buffer-data-conversion
         case type
         when :int32, :int64, :sint32, :sint64, :sfixed32, :sfixed64
           TYPES[:int]

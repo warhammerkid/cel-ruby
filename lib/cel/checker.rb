@@ -58,19 +58,15 @@ module Cel
       end
 
       if values.size == 1
+        # unary ops
         type = values.first
         case op
         when "!"
           return type if type == :bool
 
-          unsupported_type(operation)
         when "-"
-          case type
-          when :int, :bool
-            type
-          else
-            unsupported_type(operation)
-          end
+          return type if type == :int || type == :double # rubocop:disable Style/MultipleComparison
+
         else
           unsupported_type(operation)
         end
@@ -100,9 +96,8 @@ module Cel
         else
           unsupported_type(operation)
         end
-
-        unsupported_type(operation)
       end
+      unsupported_type(operation)
     end
 
     def check_invoke(funcall, var_type = nil)
@@ -290,7 +285,8 @@ module Cel
     def convert(typ)
       case typ
       when Symbol
-        Types[typ]
+        TYPES[typ] or
+          raise CheckError, "#{typ} is not aa valid type"
       else
         typ
       end

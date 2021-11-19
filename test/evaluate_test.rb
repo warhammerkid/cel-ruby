@@ -4,6 +4,7 @@ require_relative "test_helper"
 
 class CelEvaluateTest < Minitest::Test
   def test_literal_expression
+    assert_equal environment.evaluate("null"), nil
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
     assert_equal environment.evaluate("'hello' == 'world'"), false
@@ -12,6 +13,8 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 < 4"), true
     assert_equal environment.evaluate("1 == 1 && 2 == 2 && 3 > 4"), false
     assert_equal environment.evaluate("!false"), true
+    assert_equal environment.evaluate("-123"), -123
+    assert_equal environment.evaluate("-1.2e2"), -1.2e2
 
     assert_equal environment.evaluate("[1, 2] == [1, 2]"), true
     assert_equal environment.evaluate("[1, 2, 3] == [1, 2]"), false
@@ -20,12 +23,15 @@ class CelEvaluateTest < Minitest::Test
 
     assert_equal environment.evaluate("[1, 2][0]"), 1
     assert_equal environment.evaluate("Struct{a: 2}.a"), 2
+    assert_equal environment.evaluate("Struct{a: 2}").a, 2
     assert_equal environment.evaluate("{\"a\": 2}.a"), 2
     assert_equal environment.evaluate("{\"a\": 2}[\"a\"]"), 2
   end
 
   def test_type_literal
     assert_equal environment.evaluate("type(1)"), :int
+    assert_equal environment.evaluate("type(true)"), :bool
+    assert_equal environment.evaluate("type(null)"), :null_type
     assert_equal environment.evaluate("type('a')"), :string
     assert_equal environment.evaluate("type(1) == string"), false
     assert_equal environment.evaluate("type(type(1)) == type(string)"), true
@@ -48,6 +54,8 @@ class CelEvaluateTest < Minitest::Test
     assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struct{a: 1, b: 2}.c)") }
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
+
+    assert_raises(Cel::EvaluateError) { environment.evaluate("has(1.c)") }
   end
 
   def test_macros_map_filter
@@ -110,6 +118,7 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_bindings
+    assert_equal environment.evaluate("a", { a: nil }), nil
     assert_equal environment.evaluate("a", { a: true }), true
     assert_equal environment.evaluate("a", { a: 2 }), 2
     assert_equal environment.evaluate("a", { a: 1.2 }), 1.2
@@ -118,6 +127,8 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("a", { a: [1, 2, 3] }), [1, 2, 3]
     assert_equal environment.evaluate("a.b", { a: { "b" => 2 } }), 2
     assert_equal environment.evaluate("a", { a: { "b" => 2 } }), { "b" => 2 }
+
+    assert_raises(Cel::BindingError) { environment.evaluate("a", { a: Object.new }) }
   end
 
   def test_the_mothership
