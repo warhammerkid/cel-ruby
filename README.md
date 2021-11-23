@@ -52,7 +52,20 @@ rescue Cel::Error => e
   raise e
 end
 
-puts return_value #=> "true"
+puts return_value #=> true
+```
+
+### protobuf
+
+If `google/protobuf` is available in the environment, `cel-ruby` will also be able to integrate with protobuf declarations in CEL expressions.
+
+```ruby
+# gem "google-protobuf" in your Gemfile
+require "cel"
+
+env = Cel::Environment.new
+
+env.evaluate("google.protobuf.Duration{seconds: 123}.seconds == 123") #=> true
 ```
 
 
