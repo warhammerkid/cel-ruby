@@ -72,7 +72,7 @@ module Cel
   # Primitive Cel Types
 
   PRIMITIVE_TYPES = %i[int uint double bool string bytes list map null_type type].freeze
-  TYPES = PRIMITIVE_TYPES.map { |typ| [typ, Type.new(typ)] }.to_h
+  TYPES = PRIMITIVE_TYPES.to_h { |typ| [typ, Type.new(typ)] }
   TYPES[:type] = Type.new(:type)
   TYPES[:any] = Type.new(:any)
 end

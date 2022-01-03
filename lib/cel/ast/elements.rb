@@ -27,9 +27,9 @@ module Cel
 
     def initialize(type, struct)
       @struct = Struct.new(*struct.keys.map(&:to_sym)).new(*struct.values)
-      @type = type.is_a?(Type) ? type : MapType.new(struct.map do |k, v|
+      @type = type.is_a?(Type) ? type : MapType.new(struct.to_h do |k, v|
                                                       [Literal.to_cel_type(k), Literal.to_cel_type(v)]
-                                                    end.to_h)
+                                                    end)
       super(@struct)
     end
 
@@ -231,9 +231,9 @@ module Cel
 
   class Map < Literal
     def initialize(value)
-      value = value.map do |k, v|
+      value = value.to_h do |k, v|
         [Literal.to_cel_type(k), Literal.to_cel_type(v)]
-      end.to_h
+      end
       super(MapType.new(value), value)
       check
     end
