@@ -67,6 +67,21 @@ ruby30:
   artifacts:
     paths:
       - coverage
+ruby31:
+  before_script:
+    - bundle install
+    # - export RUBYOPT="-rbundler/setup -rrbs/test/setup"
+    # - export RBS_TEST_RAISE="true"
+    # - export RBS_TEST_LOGLEVEL="error"
+    # - export RBS_TEST_OPT="-Isig"
+    # - export RBS_TEST_TARGET="HTTP2Next*"
+  image: "ruby:3.1"
+  script:
+    - bundle exec rake test
+    - bundle exec rake rubocop
+  artifacts:
+    paths:
+      - coverage
 
 coverage:
   stage: prepare
@@ -75,8 +90,8 @@ coverage:
     - jruby
     - ruby26
     - ruby27
-    - ruby30
-  image: "ruby:3.0"
+    - ruby31
+  image: "ruby:3.1"
   before_script:
     - gem install simplecov --no-doc
   script:
