@@ -34,15 +34,26 @@ require "cel"
 # set the environment
 env = Cel::Environment.new(name: :string, group: :string)
 
-# parse and check
+# 1.1 parse
 begin
   ast = env.compile('name.startsWith("/groups/" + group)') #=> Cel::Types[:bool], which is == :bool
 rescue Cel::Error => e
   STDERR.puts("type-check error: #{e.message}")
   raise e
 end
+# 1.2 check
+prg = env.program(ast)
+# 1.3 evaluate
+return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
+    group: Cel::String.new("acme.co")))
 
-# evaluate
+# 2.1 parse and check
+prg = env.program('name.startsWith("/groups/" + group)')
+# 2.2 then evaluate
+return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
+    group: Cel::String.new("acme.co")))
+
+# 3. or parse, check and evaluate
 begin
   return_value = env.evaluate(ast,
     name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
@@ -98,4 +109,4 @@ Changes in the parser are therefore accomplished by modifying the `parser.ry` fi
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://gitlab.com/honeyryderchuck/cel-ruby.
+Bug reports and pull requests are welcome on Gitlab at https://gitlab.com/honeyryderchuck/cel-ruby.
