@@ -7,6 +7,7 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("null"), nil
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
+    assert_equal environment.evaluate("'hello' == 'hellohello'"), false
     assert_equal environment.evaluate("'hello' == 'world'"), false
     assert_equal environment.evaluate("1 == 1 || 1 == 2 || 3 > 4"), true
     assert_equal environment.evaluate("2 == 1 || 1 == 2 || 3 > 4"), false

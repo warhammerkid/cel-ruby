@@ -176,7 +176,7 @@ module Cel
     LOGICAL_OPERATORS.each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
-          Bool.new(super)
+          other.is_a?(Cel::Literal) ? Bool.new(super) : super
         end
       OUT
     end

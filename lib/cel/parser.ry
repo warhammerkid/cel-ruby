@@ -223,21 +223,21 @@ def convert_to_number(scanner)
   matched = scanner.matched
   hexa, uint, number, floating, exp = scanner.captures
 
-  if !hexa.empty?
+  if hexa && !hexa.empty?
     return [:tINT, hexa.to_i(16)]
   end
 
-  if !uint.empty?
+  if uint && !uint.empty?
     return [:tUINT, Integer(uint)]
   end
 
-  if !exp.empty?
+  if exp && !exp.empty?
     # third matched group, can only be a floating exponential, let's convert tout suite
     [:tDOUBLE, BigDecimal(matched)]
-  elsif !floating.empty?
+  elsif floating && !floating.empty?
     if number == floating || floating.start_with?(".")
       [:tDOUBLE, Float(matched)]
-    elsif number.empty?
+    elsif number.nil? || number.empty?
       [:tDOUBLE, BigDecimal(matched)]
     end
   else
