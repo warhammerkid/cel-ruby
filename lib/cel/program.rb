@@ -62,9 +62,9 @@ module Cel
         # unary operations
         values.first.__send__(:"#{op}@")
       elsif op == "&&"
-        Bool.new(values.all? { |x| x == true })
+        Bool.new(values.all? { |x| true == x }) # rubocop:disable Style/YodaCondition
       elsif op == "||"
-        Bool.new(values.any? { |x| x == true })
+        Bool.new(values.any? { |x| true == x }) # rubocop:disable Style/YodaCondition
       elsif op == "in"
         element, collection = values
         Bool.new(collection.include?(element))
