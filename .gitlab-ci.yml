@@ -14,6 +14,7 @@ variables:
   BUNDLE_JOBS: 10
   BUNDLE_PATH: vendor
   CI: 1
+  PARALLEL: 1
 
 .before_script: &before_script
   - ruby -v
