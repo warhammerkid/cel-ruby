@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-GC.auto_compact = true if GC.respond_to?(:auto_compact=)
+GC.auto_compact = true if GC.respond_to?(:auto_compact=) && RUBY_VERSION >= "3.2.0"
 
 if ENV.key?("CI")
   require "simplecov"
