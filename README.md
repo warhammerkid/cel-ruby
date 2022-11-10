@@ -109,4 +109,4 @@ Changes in the parser are therefore accomplished by modifying the `parser.ry` fi
 
 ## Contributing
 
-Bug reports and pull requests are welcome on Gitlab at https://gitlab.com/honeyryderchuck/cel-ruby.
+Bug reports and pull requests are welcome on Gitlab at https://gitlab.com/os85/cel-ruby.

@@ -17,11 +17,11 @@ Gem::Specification.new do |spec|
   spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
 
   spec.metadata = {
-    "bug_tracker_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby/issues",
-    "changelog_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby/-/blob/master/CHANGELOG.md",
-    # "documentation_uri" => "https://honeyryderchuck.gitlab.io/cel-ruby/rdoc/",
-    "source_code_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
-    "homepage_uri" => "https://gitlab.com/honeyryderchuck/cel-ruby",
+    "bug_tracker_uri" => "https://gitlab.com/os85/cel-ruby/issues",
+    "changelog_uri" => "https://gitlab.com/os85/cel-ruby/-/blob/master/CHANGELOG.md",
+    # "documentation_uri" => "https://os85.gitlab.io/cel-ruby/rdoc/",
+    "source_code_uri" => "https://gitlab.com/os85/cel-ruby",
+    "homepage_uri" => "https://gitlab.com/os85/cel-ruby",
     "rubygems_mfa_required" => "true",
   }
   spec.required_ruby_version = ">= 2.6"
