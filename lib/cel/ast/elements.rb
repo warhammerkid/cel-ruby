@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "delegate"
+require_relative "elements/protobuf"
 
 module Cel
   LOGICAL_OPERATORS = %w[< <= >= > == != in].freeze
@@ -20,10 +21,21 @@ module Cel
     def ==(other)
       super || other.to_s == @id.to_s
     end
+
+    def to_s
+      @id.to_s
+    end
   end
 
   class Message < SimpleDelegator
     attr_reader :type, :struct
+
+    def self.new(type, struct)
+      value = convert_from_type(type, struct)
+      return value if value.is_a?(Null) || value != struct
+
+      super
+    end
 
     def initialize(type, struct)
       @struct = Struct.new(*struct.keys.map(&:to_sym)).new(*struct.values)
@@ -36,10 +48,31 @@ module Cel
     def field?(key)
       !@type.get(key).nil?
     end
+
+    def self.convert_from_type(type, value)
+      case type
+      when Invoke, Identifier
+        spread_type = type.to_s
+        Protobuf.convert_from_type(spread_type, value)
+      when Type
+        [type, value]
+      else
+        [
+          MapType.new(struct.to_h do |k, v|
+            [Literal.to_cel_type(k), Literal.to_cel_type(v)]
+          end),
+          Struct.new(*struct.keys.map(&:to_sym)).new(*struct.values),
+        ]
+      end
+    end
   end
 
   class Invoke
     attr_reader :var, :func, :args
+
+    def self.new(func:, var: nil, args: nil)
+      Protobuf.try_invoke_from(var, func, args) || super
+    end
 
     def initialize(func:, var: nil, args: nil)
       @var = var
