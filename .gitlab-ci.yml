@@ -25,7 +25,7 @@ jruby:
     JRUBY_OPTS: "--debug"
   before_script:
     - bundle install
-  image: "jruby:9.3"
+  image: "jruby:9.4"
   script:
     - bundle exec rake test
   artifacts:
