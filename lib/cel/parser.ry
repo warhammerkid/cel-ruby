@@ -164,10 +164,6 @@ def tokenize(str)
       # skip comment lines
     when scanner.scan(NUMBER_REGEX)
       @q << convert_to_number(scanner)
-    when scanner.scan(/true|false/)
-      @q << [:tBOOL, scanner.matched == "true"]
-    when scanner.scan(/null/)
-      @q << [:tNULL, nil]
     when scanner.scan(/[bB]?[rR]?#{STRING_LIT_REGEX}/) # string
       # s = scanner.matched.yield_self {|s| s[1, s.length - 2] }
       #                  .gsub(DBL_QUOTE_STR_ESCAPE_SEQUENCES_RE) do |match|
@@ -196,7 +192,13 @@ def tokenize(str)
       end
     when scanner.scan(IDENTIFIER_REGEX)
       word = scanner.matched
-      if RESERVED.include?(word)
+      if word == "null"
+        @q << [:tNULL, nil]
+      elsif word == "true"
+        @q << [:tBOOL, true]
+      elsif word == "false"
+        @q << [:tBOOL, false]
+      elsif RESERVED.include?(word)
         @q << [:tRESERVED, scanner.matched]
       elsif word == "in"
         @q << [OPERATORS[scanner.matched], scanner.matched]

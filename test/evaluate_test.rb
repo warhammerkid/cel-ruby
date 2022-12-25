@@ -4,6 +4,7 @@ require_relative "test_helper"
 
 class CelEvaluateTest < Minitest::Test
   def test_literal_expression
+    assert_equal environment.evaluate("1"), 1
     assert_equal environment.evaluate("null"), nil
     assert_equal environment.evaluate("1 == 2"), false
     assert_equal environment.evaluate("'hello' == 'hello'"), true
@@ -23,8 +24,8 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("{'a': 2} == {'a': 2}"), true
 
     assert_equal environment.evaluate("[1, 2][0]"), 1
-    assert_equal environment.evaluate("Struct{a: 2}.a"), 2
-    assert_equal environment.evaluate("Struct{a: 2}").a, 2
+    assert_equal environment.evaluate("{a: 2}.a"), 2
+    assert_equal environment.evaluate("{a: 2}").a, 2
     assert_equal environment.evaluate("{\"a\": 2}.a"), 2
     assert_equal environment.evaluate("{\"a\": 2}[\"a\"]"), 2
   end
@@ -36,6 +37,31 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("type('a')"), :string
     assert_equal environment.evaluate("type(1) == string"), false
     assert_equal environment.evaluate("type(type(1)) == type(string)"), true
+  end
+
+  def test_dynamic_proto
+    assert_equal environment.evaluate("google.protobuf.BoolValue{value: true}"), true
+    assert_equal environment.evaluate("google.protobuf.BytesValue{value: b'foo\\123'}"), "foo\123"
+    assert_equal environment.evaluate("google.protobuf.DoubleValue{value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.FloatValue{value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.Int32Value{value: -123}"), -123
+    assert_equal environment.evaluate("google.protobuf.Int64Value{value: -123}"), -123
+    assert_equal environment.evaluate("google.protobuf.Int32Value{}"), 0
+    assert_equal environment.evaluate("google.protobuf.NullValue{}"), nil
+    assert_equal environment.evaluate("google.protobuf.StringValue{value: 'foo'}"), "foo"
+    assert_equal environment.evaluate("google.protobuf.StringValue{}"), ""
+    assert_equal environment.evaluate("google.protobuf.Uint32Value{value: 123u}"), 123
+    assert_equal environment.evaluate("google.protobuf.Uint64Value{value: 123u}"), 123
+    assert_equal environment.evaluate("google.protobuf.ListValue{values: [3.0, 'foo', null]}"), [3.0, "foo", nil]
+    assert_equal environment.evaluate("google.protobuf.Struct{fields: {'uno': 1.0, 'dos': 2.0}}"),
+                 { "uno" => 1.0, "dos" => 2.0 }
+
+    assert_equal environment.evaluate("google.protobuf.Value{}"), nil
+    assert_equal environment.evaluate("google.protobuf.Value{null_value: NullValue.NULL_VALUE}"), nil
+    assert_equal environment.evaluate("google.protobuf.Value{number_value: 12}"), 12.0
+    assert_equal environment.evaluate("google.protobuf.Value{number_value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.Value{string_value: 'bla'}"), "bla"
+    assert_equal environment.evaluate("google.protobuf.Value{bool_value: true}"), true
   end
 
   def test_var_expression
@@ -51,8 +77,8 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_macros_has
-    assert_equal environment.evaluate("has(Struct{a: 1, b: 2}.a)"), true
-    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struct{a: 1, b: 2}.c)") }
+    assert_equal environment.evaluate("has({a: 1, b: 2}.a)"), true
+    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struc{fields: {a: 1, b: 2}}.c)") }
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.a)"), true
     assert_equal environment.evaluate("has({'a': 1, 'b': 2}.c)"), false
 

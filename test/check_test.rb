@@ -21,7 +21,7 @@ class CelCheckTest < Minitest::Test
     assert_kind_of Cel::MapType, environment.check("{'a': 2}")
 
     assert_equal environment.check("[1, 2][0]"), Cel::TYPES[:int]
-    assert_equal environment.check("Struct{a: 2}.a"), Cel::TYPES[:int]
+    assert_equal environment.check("{a: 2}.a"), Cel::TYPES[:int]
 
     assert_raises(Cel::CheckError) { environment.check("[1, 2][2]") }
     assert_raises(Cel::CheckError) { environment.check("!'bla'") }
@@ -35,6 +35,20 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("type('a')"), Cel::TYPES[:type]
     assert_equal environment.check("type(1) == string"), Cel::TYPES[:bool]
     assert_equal environment.check("type(type(1)) == type(string)"), Cel::TYPES[:bool]
+  end
+
+  def test_dynamic_proto
+    assert_equal environment.check("google.protobuf.BoolValue{value: true}"), Cel::TYPES[:bool]
+    assert_equal environment.check("google.protobuf.DoubleValue{value: -1.5e3}"), Cel::TYPES[:double]
+    assert_equal environment.check("google.protobuf.Int64Value{value: -123}"), Cel::TYPES[:int]
+    assert_equal environment.check("google.protobuf.ListValue{values: [3.0, 'foo', null]}"), Cel::TYPES[:list]
+    assert_equal environment.check("google.protobuf.BytesValue{value: b'foo\\123'}"), Cel::TYPES[:bytes]
+    assert_equal environment.check("google.protobuf.StringValue{value: 'foo'}"), Cel::TYPES[:string]
+    assert_equal environment.check("google.protobuf.Struct{fields: {'uno': 1.0, 'dos': 2.0}}"), Cel::TYPES[:map]
+
+    assert_equal environment.check("google.protobuf.Value{number_value: 12}"), Cel::TYPES[:double]
+    assert_equal environment.check("google.protobuf.Value{number_value: -1.5e3}"), Cel::TYPES[:double]
+    assert_equal environment.check("google.protobuf.Value{string_value: 'bla'}"), Cel::TYPES[:string]
   end
 
   def test_type_aggregates
