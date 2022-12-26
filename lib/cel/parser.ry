@@ -53,7 +53,7 @@ rule
 
 
   primary:  identifier { result = Cel::Identifier.new(val[0]) }
-         |  identifier '(' maybe_expr_list ')' {result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1)) }
+         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1)) }
          | '(' expr ')' { result = Cel::Group.new(val[1]) }
          | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
          | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }
@@ -63,7 +63,7 @@ rule
             | '.' tIDENTIFIER
 
   maybe_expr_list: expr_list
-                 | { result = nil }
+                 | { result = [] }
 
   maybe_map_inits: { result = nil }
                  | map_inits

@@ -31,10 +31,9 @@ module Cel
       Checker.new(@declarations ? @declarations.merge(declarations) : declarations)
     end
 
-    # TODO: add protobuf timestamp and duration
-    LOGICAL_EXPECTED_TYPES = %i[bool int uint double string bytes].freeze
-    ADD_EXPECTED_TYPES = %i[int uint double string bytes list].freeze
-    SUB_EXPECTED_TYPES = %i[int uint double].freeze
+    LOGICAL_EXPECTED_TYPES = %i[bool int uint double string bytes timestamp duration].freeze
+    ADD_EXPECTED_TYPES = %i[int uint double string bytes list duration].freeze
+    SUB_EXPECTED_TYPES = %i[int uint double duration].freeze
     MULTIDIV_EXPECTED_TYPES = %i[int uint double].freeze
     REMAINDER_EXPECTED_TYPES = %i[int uint].freeze
 
@@ -73,26 +72,48 @@ module Cel
       else
 
         case op
-        when "&&", "||", "==", "!=", "<", "<=", ">=", ">"
-          return TYPES[:bool]
+        when "&&", "||", "<", "<=", ">=", ">"
+          return TYPES[:bool] if find_match_all_types(LOGICAL_EXPECTED_TYPES, values) || values.include?(:any)
+        when "!=", "=="
+          return TYPES[:bool] if values.uniq.size == 1 ||
+                                 values.all? { |v| v == :list } ||
+                                 values.all? { |v| v == :map } ||
+                                 values.include?(:any)
         when "in"
-          return TYPES[:bool] if find_match_all_types(%i[list map], values.last)
+          return TYPES[:bool] if find_match_all_types(%i[list map any], values.last)
         when "+"
-          if (type = find_match_all_types(ADD_EXPECTED_TYPES, values))
-            return type
-          end
+          return type if (type = find_match_all_types(ADD_EXPECTED_TYPES, values))
+
+          return TYPES[:timestamp] if %i[timestamp duration].any? { |typ| values.first == typ }
+
+          return values.last if values.first == :any
+
         when "-"
-          if (type = find_match_all_types(SUB_EXPECTED_TYPES, values))
-            return type
+          return type if (type = find_match_all_types(SUB_EXPECTED_TYPES, values))
+
+          case values.first
+          when TYPES[:timestamp]
+            return TYPES[:duration] if values.last == :timestamp
+
+            return TYPES[:timestamp] if values.last == :duration
+
+            return TYPES[:any] if values.last == :any
+
+          when TYPES[:any]
+            return values.last
           end
         when "*", "/"
-          if (type = find_match_all_types(MULTIDIV_EXPECTED_TYPES, values))
-            return type
-          end
+          return type if (type = find_match_all_types(MULTIDIV_EXPECTED_TYPES, values))
+
+          values.include?(:any)
+          values.find { |typ| typ != :any } || TYPES[:any]
+
         when "%"
-          if (type = find_match_all_types(REMAINDER_EXPECTED_TYPES, values))
-            return type
-          end
+          return type if (type = find_match_all_types(REMAINDER_EXPECTED_TYPES, values))
+
+          values.include?(:any)
+          values.find { |typ| typ != :any } || TYPES[:any]
+
         else
           unsupported_type(operation)
         end
@@ -195,17 +216,38 @@ module Cel
           unsupported_type(funcall)
         end
         unsupported_operation(funcall)
+      when TYPES[:timestamp]
+        case func
+        when :getDate, :getDayOfMonth, :getDayOfWeek, :getDayOfYear, :getFullYear, :getHours,
+             :getMilliseconds, :getMinutes, :getMonth, :getSeconds
+          check_arity(func, args, 0..1)
+          return TYPES[:int] if args.size.zero? || (args.size.positive? && args[0] == :string)
+        else
+          unsupported_type(funcall)
+        end
+        unsupported_operation(funcall)
+      when TYPES[:duration]
+        case func
+        when :getMilliseconds, :getMinutes, :getHours, :getSeconds
+          check_arity(func, args, 0)
+          return TYPES[:int]
+        else
+          unsupported_type(funcall)
+        end
+        unsupported_operation(funcall)
       else
         TYPES[:any]
       end
     end
 
     CAST_ALLOWED_TYPES = {
-      int: %i[uint double string], # TODO: enum, timestamp
+      int: %i[uint double string timestamp], # TODO: enum
       uint: %i[int double string],
-      string: %i[int uint double bytes], # TODO: timestamp, duration
+      string: %i[int uint double bytes timestamp duration],
       double: %i[int uint string],
       bytes: %i[string],
+      duration: %i[string],
+      timestamp: %i[string],
     }.freeze
 
     def check_standard_func(funcall)
@@ -224,7 +266,7 @@ module Cel
       when :size
         check_arity(func, args, 1)
         return TYPES[:int] if find_match_all_types(%i[string bytes list map], call(args.first))
-      when :int, :uint, :string, :double, :bytes # :duration, :timestamp
+      when *CAST_ALLOWED_TYPES.keys
         check_arity(func, args, 1)
         allowed_types = CAST_ALLOWED_TYPES[func]
 
@@ -286,7 +328,7 @@ module Cel
       case typ
       when Symbol
         TYPES[typ] or
-          raise CheckError, "#{typ} is not aa valid type"
+          raise CheckError, "#{typ} is not a valid type"
       else
         typ
       end
@@ -307,7 +349,7 @@ module Cel
     end
 
     def check_arity(func, args, arity)
-      return if args.size == arity
+      return if arity === args.size # rubocop:disable Style/CaseEquality
 
       raise CheckError, "`#{func}` invoked with wrong number of arguments (should be #{arity})"
     end

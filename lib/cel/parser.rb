@@ -740,7 +740,7 @@ module_eval(<<'.,.,', 'parser.ry', 54)
 
 module_eval(<<'.,.,', 'parser.ry', 55)
   def _reduce_30(val, _values, result)
-    result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1))
+     result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1))
     result
   end
 .,.,
@@ -776,7 +776,7 @@ module_eval(<<'.,.,', 'parser.ry', 58)
 
 module_eval(<<'.,.,', 'parser.ry', 65)
   def _reduce_38(val, _values, result)
-     result = nil
+     result = []
     result
   end
 .,.,

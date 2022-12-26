@@ -30,11 +30,35 @@ class CelCheckTest < Minitest::Test
     assert_raises(Cel::CheckError) { environment.check("1 + 'a'") }
   end
 
+  def test_timestamp_duration
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z')"), Cel::TYPES[:timestamp]
+    assert_equal environment.check("duration('60s')"), Cel::TYPES[:duration]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z') + duration('60s')"), Cel::TYPES[:timestamp]
+    assert_equal environment.check("duration('60s') + duration('60s')"), Cel::TYPES[:duration]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z') - timestamp('2022-12-25T00:00:00Z')"),
+                 Cel::TYPES[:duration]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z') - duration('60s')"), Cel::TYPES[:timestamp]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z') < timestamp('2022-12-25T00:00:00Z')"),
+                 Cel::TYPES[:bool]
+
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getDate()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getDayOfMonth()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getDayOfWeek()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getDayOfYear()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getFullYear()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getHours()"), Cel::TYPES[:int]
+    assert_equal environment.check("timestamp('2022-12-25T00:00:00Z').getMilliseconds()"), Cel::TYPES[:int]
+    assert_equal environment.check("int(timestamp('2022-12-25T00:00:00Z'))"), Cel::TYPES[:int]
+    assert_equal environment.check("duration('60s10ms').getMilliseconds()"), Cel::TYPES[:int]
+    assert_equal environment.check("duration('60s10ms').getSeconds()"), Cel::TYPES[:int]
+  end
+
   def test_type_literal
     assert_equal environment.check("type(1)"), Cel::TYPES[:type]
     assert_equal environment.check("type('a')"), Cel::TYPES[:type]
     assert_equal environment.check("type(1) == string"), Cel::TYPES[:bool]
     assert_equal environment.check("type(type(1)) == type(string)"), Cel::TYPES[:bool]
+    assert_equal environment.check("type(timestamp('2022-12-25T00:00:00Z'))"), Cel::TYPES[:type]
   end
 
   def test_dynamic_proto
@@ -49,6 +73,8 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("google.protobuf.Value{number_value: 12}"), Cel::TYPES[:double]
     assert_equal environment.check("google.protobuf.Value{number_value: -1.5e3}"), Cel::TYPES[:double]
     assert_equal environment.check("google.protobuf.Value{string_value: 'bla'}"), Cel::TYPES[:string]
+    assert_equal environment.check("google.protobuf.Timestamp{seconds: 946702800}"), Cel::TYPES[:timestamp]
+    assert_equal environment.check("google.protobuf.Duration{seconds: 60}"), Cel::TYPES[:duration]
   end
 
   def test_type_aggregates

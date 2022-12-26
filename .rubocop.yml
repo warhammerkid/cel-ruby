@@ -47,6 +47,9 @@ Metrics/PerceivedComplexity:
 Metrics/CyclomaticComplexity:
   Enabled: false
 
+Metrics/BlockNesting:
+  Enabled: false
+
 Style/Documentation:
   Enabled: false
 
