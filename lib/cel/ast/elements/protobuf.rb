@@ -42,6 +42,14 @@ module Cel
         value = Null.new
       when "StringValue", "google.protobuf.StringValue"
         value = value.nil? ? String.new(+"") : value[Identifier.new("value")]
+      when "Timestamp", "google.protobuf.Timestamp"
+        seconds = value.fetch(Identifier.new("seconds"), 0)
+        nanos = value.fetch(Identifier.new("nanos"), 0)
+        value = Timestamp.new(Time.at(seconds, nanos, :nanosecond))
+      when "Duration", "google.protobuf.Duration"
+        seconds = value.fetch(Identifier.new("seconds"), 0)
+        nanos = value.fetch(Identifier.new("nanos"), 0)
+        value = Duration.new(seconds: seconds, nanos: nanos)
       end
       value
     end
@@ -61,7 +69,9 @@ module Cel
         "Uint32Value", "google.protobuf.Uint32Value",
         "Uint64Value", "google.protobuf.Uint64Value",
         "NullValue", "google.protobuf.NullValue",
-        "StringValue", "google.protobuf.StringValue"
+        "StringValue", "google.protobuf.StringValue",
+        "Timestamp", "google.protobuf.Timestamp",
+        "Duration", "google.protobuf.Duration"
         protoclass = var.split(".").last
         protoclass = Google::Protobuf.const_get(protoclass)
 

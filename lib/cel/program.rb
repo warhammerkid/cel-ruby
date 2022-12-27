@@ -110,6 +110,10 @@ module Cel
         args ?
         var.public_send(func, *args) :
         var.public_send(func)
+      when Timestamp, Duration
+        raise EvaluateError, "#{invoke} is not supported" unless var.class.method_defined?(func, false)
+
+        var.public_send(func, *args)
       else
         raise EvaluateError, "#{invoke} is not supported"
       end
@@ -134,7 +138,7 @@ module Cel
         Macro.__send__(func, *args)
       when :matches
         Macro.__send__(func, *args.map { |arg| call(arg) })
-      when :int, :uint, :string, :double, :bytes # :duration, :timestamp
+      when :int, :uint, :string, :double, :bytes, :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))
       when :dyn

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "time"
 require "delegate"
 require_relative "elements/protobuf"
 
@@ -304,6 +305,168 @@ module Cel
       return if @value.each_key.all? { |key| key.is_a?(Identifier) || ALLOWED_TYPES.include?(key.type) }
 
       raise CheckError, "#{self} is invalid (keys must be of an allowed type (int, uint, bool, or string)"
+    end
+  end
+
+  class Timestamp < Literal
+    def initialize(value)
+      value = case value
+              when String then Time.parse(value)
+              when Numeric then Time.at(value)
+              else value
+      end
+      super(:timestamp, value)
+    end
+
+    def +(other)
+      Timestamp.new(@value + other.to_f)
+    end
+
+    def -(other)
+      case other
+      when Timestamp
+        Duration.new(@value - other.value)
+      when Duration
+        Timestamp.new(@value - other.to_f)
+      end
+    end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          other.is_a?(Cel::Literal) ? Bool.new(super) : super
+        end
+      OUT
+    end
+
+    # Cel Functions
+
+    def getDate(tz = nil)
+      to_local_time(tz).day
+    end
+
+    def getDayOfMonth(tz = nil)
+      getDate(tz) - 1
+    end
+
+    def getDayOfWeek(tz = nil)
+      to_local_time(tz).wday
+    end
+
+    def getDayOfYear(tz = nil)
+      to_local_time(tz).yday - 1
+    end
+
+    def getMonth(tz = nil)
+      to_local_time(tz).month - 1
+    end
+
+    def getFullYear(tz = nil)
+      to_local_time(tz).year
+    end
+
+    def getHours(tz = nil)
+      to_local_time(tz).hour
+    end
+
+    def getMinutes(tz = nil)
+      to_local_time(tz).min
+    end
+
+    def getSeconds(tz = nil)
+      to_local_time(tz).sec
+    end
+
+    def getMilliseconds(tz = nil)
+      to_local_time(tz).nsec / 1_000_000
+    end
+
+    private
+
+    def to_local_time(tz = nil)
+      time = @value
+      if tz
+        tz = TZInfo::Timezone.get(tz) unless tz.match?(/\A[+-]\d{2,}:\d{2,}\z/)
+        time = time.getlocal(tz)
+      end
+      time
+    end
+  end
+
+  class Duration < Literal
+    def initialize(value)
+      value = case value
+              when String
+                init_from_string(value)
+              when Hash
+                seconds, nanos = value.values_at(:seconds, :nanos)
+                seconds ||= 0
+                nanos ||= 0
+                seconds + (nanos / 1_000_000_000.0)
+              else
+                value
+      end
+      super(:duration, value)
+    end
+
+    LOGICAL_OPERATORS.each do |op|
+      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        def #{op}(other)
+          case other
+          when Cel::Literal
+            Bool.new(super)
+          when Numeric
+            @value == other
+
+          else
+            super
+          end
+        end
+      OUT
+    end
+
+    # Cel Functions
+
+    def getHours
+      (getMinutes / 60).to_i
+    end
+
+    def getMinutes
+      (getSeconds / 60).to_i
+    end
+
+    def getSeconds
+      @value.divmod(1).first
+    end
+
+    def getMilliseconds
+      (@value.divmod(1).last * 1000).round
+    end
+
+    private
+
+    def init_from_string(value)
+      seconds = 0
+      nanos = 0
+      value.scan(/([0-9]*(?:\.[0-9]*)?)([a-z]+)/) do |duration, units|
+        case units
+        when "h"
+          seconds += Cel.to_numeric(duration) * 60 * 60
+        when "m"
+          seconds += Cel.to_numeric(duration) * 60
+        when "s"
+          seconds += Cel.to_numeric(duration)
+        when "ms"
+          nanos += Cel.to_numeric(duration) * 1000 * 1000
+        when "us"
+          nanos += Cel.to_numeric(duration) * 1000
+        when "ns"
+          nanos += Cel.to_numeric(duration)
+        else
+          raise EvaluateError, "#{units} is unsupported"
+        end
+      end
+      seconds + (nanos / 1_000_000_000.0)
     end
   end
 
