@@ -75,6 +75,11 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("google.protobuf.Value{string_value: 'bla'}"), Cel::TYPES[:string]
     assert_equal environment.check("google.protobuf.Timestamp{seconds: 946702800}"), Cel::TYPES[:timestamp]
     assert_equal environment.check("google.protobuf.Duration{seconds: 60}"), Cel::TYPES[:duration]
+    assert_equal environment.check(
+      "google.protobuf.Any{" \
+      "type_url: 'type.googleapis.com/google.protobuf.Value', " \
+      "value: b'\x11\x00\x00\x00\x00\x00\x00(@'}"
+    ), Cel::TYPES[:double]
   end
 
   def test_type_aggregates
@@ -107,6 +112,8 @@ class CelCheckTest < Minitest::Test
     assert_equal environment(a: :any).check("a"), Cel::TYPES[:any]
     assert_equal environment(a: :bool).check("a"), Cel::TYPES[:bool]
     assert_raises(Cel::CheckError) { environment(a: :blow).check("a") }
+
+    assert_equal environment(a: :timestamp).check("a"), Cel::TYPES[:timestamp]
   end
 
   def test_condition

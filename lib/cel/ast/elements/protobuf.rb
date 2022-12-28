@@ -1,15 +1,54 @@
 # frozen_string_literal: true
 
-# require 'google/protobuf/struct_pb'
-# require 'google/protobuf/wrappers_pb'
-# require 'google/protobuf/any_pb'
+require "google/protobuf/struct_pb"
+require "google/protobuf/wrappers_pb"
+require "google/protobuf/any_pb"
+require "google/protobuf/well_known_types"
 
 module Cel
   module Protobuf
-    def self.convert_from_type(type, value)
+    module_function
+
+    def convert_from_protobuf(msg)
+      case msg
+      when Google::Protobuf::Any
+
+        any.unpack(type_msg).to_ruby
+      when Google::Protobuf::ListValue
+        msg.to_a
+      when Google::Protobuf::Struct
+        msg.to_h
+      when Google::Protobuf::Value
+        msg.to_ruby
+      when Google::Protobuf::BoolValue,
+           Google::Protobuf::BytesValue,
+           Google::Protobuf::DoubleValue,
+           Google::Protobuf::FloatValue,
+           Google::Protobuf::Int32Value,
+           Google::Protobuf::Int64Value,
+           Google::Protobuf::UInt32Value,
+           Google::Protobuf::UInt64Value,
+           Google::Protobuf::NullValue,
+           Google::Protobuf::StringValue
+        msg.value
+      when Google::Protobuf::Timestamp
+        msg.to_time
+      when Google::Protobuf::Duration
+        Cel::Duration.new(seconds: msg.seconds, nanos: msg.nanos)
+      else
+        raise Error, "#{msg.class}: protobuf to cel unsupported"
+      end
+    end
+
+    def convert_from_type(type, value)
       case type
       when "Any", "google.protobuf.Any"
-        # TODO
+        type_url = value[Identifier.new("type_url")].value
+        _, type_msg = type_url.split("/", 2)
+        type_msg = const_get(type_msg.split(".").map(&:capitalize).join("::"))
+        encoded_msg = value[Identifier.new("value")].value.pack("C*")
+        any = Google::Protobuf::Any.new(type_url: type_url, value: encoded_msg)
+        value = Literal.to_cel_type(any.unpack(type_msg).to_ruby)
       when "ListValue", "google.protobuf.ListValue"
         value = value.nil? ? List.new([]) : value[Identifier.new("values")]
       when "Struct", "google.protobuf.Struct"
@@ -35,8 +74,8 @@ module Cel
       when "Int32Value", "google.protobuf.Int32Value",
            "Int64Value", "google.protobuf.Int64Value"
         value = value.nil? ? Number.new(:int, 0) : value[Identifier.new("value")]
-      when "Uint32Value", "google.protobuf.Uint32Value",
-           "Uint64Value", "google.protobuf.Uint64Value"
+      when "Uint32Value", "google.protobuf.UInt32Value",
+           "Uint64Value", "google.protobuf.UInt64Value"
         value = value.nil? ? Number.new(:uint, 0) : value[Identifier.new("value")]
       when "NullValue", "google.protobuf.NullValue"
         value = Null.new
@@ -54,7 +93,7 @@ module Cel
       value
     end
 
-    def self.try_invoke_from(var, func, args)
+    def try_invoke_from(var, func, args)
       case var
       when "Any", "google.protobuf.Any",
         "ListValue", "google.protobuf.ListValue",

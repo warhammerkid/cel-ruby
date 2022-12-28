@@ -74,7 +74,7 @@ rule
   maybe_field_inits: { result = nil }
                    | field_inits
 
-  field_inits: field_inits ',' tIDENTIFIER ":" expr
+  field_inits: field_inits ',' tIDENTIFIER ":" expr { result = val[0].merge(Cel::Identifier.new(val[2]) => val[4]) }
              | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0]) => val[2] } }
 
   map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }

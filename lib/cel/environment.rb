@@ -21,11 +21,11 @@ module Cel
 
     def program(expr)
       expr = compile(expr) if expr.is_a?(::String)
-      Runner.new(expr)
+      Runner.new(@declarations, expr)
     end
 
     def evaluate(expr, bindings = nil)
-      context = Context.new(bindings)
+      context = Context.new(@declarations, bindings)
       expr = compile(expr) if expr.is_a?(::String)
       Program.new(context).evaluate(expr)
     end
@@ -36,12 +36,13 @@ module Cel
   end
 
   class Runner
-    def initialize(ast)
+    def initialize(declarations, ast)
+      @declarations = declarations
       @ast = ast
     end
 
     def evaluate(bindings = nil)
-      context = Context.new(bindings)
+      context = Context.new(@declarations, bindings)
       Program.new(context).evaluate(@ast)
     end
   end

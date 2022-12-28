@@ -472,7 +472,7 @@ racc_reduce_table = [
   1, 49, :_reduce_42,
   0, 45, :_reduce_43,
   1, 45, :_reduce_none,
-  5, 51, :_reduce_none,
+  5, 51, :_reduce_45,
   3, 51, :_reduce_46,
   5, 50, :_reduce_47,
   3, 50, :_reduce_48,
@@ -813,7 +813,12 @@ module_eval(<<'.,.,', 'parser.ry', 73)
 
 # reduce 44 omitted
 
-# reduce 45 omitted
+module_eval(<<'.,.,', 'parser.ry', 76)
+  def _reduce_45(val, _values, result)
+     result = val[0].merge(Cel::Identifier.new(val[2]) => val[4])
+    result
+  end
+.,.,
 
 module_eval(<<'.,.,', 'parser.ry', 77)
   def _reduce_46(val, _values, result)

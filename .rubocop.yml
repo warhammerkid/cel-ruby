@@ -50,6 +50,9 @@ Metrics/CyclomaticComplexity:
 Metrics/BlockNesting:
   Enabled: false
 
+Metrics/ModuleLength:
+  Enabled: false
+
 Style/Documentation:
   Enabled: false
 

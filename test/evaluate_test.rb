@@ -59,8 +59,8 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_type_literal
-    # assert_equal environment.evaluate("type(1)"), :int
-    # assert_equal environment.evaluate("type(true)"), :bool
+    assert_equal environment.evaluate("type(1)"), :int
+    assert_equal environment.evaluate("type(true)"), :bool
     assert_equal environment.evaluate("type(null)"), :null_type
     assert_equal environment.evaluate("type('a')"), :string
     assert_equal environment.evaluate("type(1) == string"), false
@@ -69,35 +69,48 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_dynamic_proto
-    # assert_equal environment.evaluate("google.protobuf.BoolValue{value: true}"), true
-    # assert_equal environment.evaluate("google.protobuf.BytesValue{value: b'foo\\123'}"), "foo\123"
-    # assert_equal environment.evaluate("google.protobuf.DoubleValue{value: -1.5e3}"), -1500.0
-    # assert_equal environment.evaluate("google.protobuf.FloatValue{value: -1.5e3}"), -1500.0
-    # assert_equal environment.evaluate("google.protobuf.Int32Value{value: -123}"), -123
-    # assert_equal environment.evaluate("google.protobuf.Int64Value{value: -123}"), -123
-    # assert_equal environment.evaluate("google.protobuf.Int32Value{}"), 0
-    # assert_equal environment.evaluate("google.protobuf.NullValue{}"), nil
-    # assert_equal environment.evaluate("google.protobuf.StringValue{value: 'foo'}"), "foo"
-    # assert_equal environment.evaluate("google.protobuf.StringValue{}"), ""
-    # assert_equal environment.evaluate("google.protobuf.Uint32Value{value: 123u}"), 123
-    # assert_equal environment.evaluate("google.protobuf.Uint64Value{value: 123u}"), 123
-    # assert_equal environment.evaluate("google.protobuf.ListValue{values: [3.0, 'foo', null]}"), [3.0, "foo", nil]
-    # assert_equal environment.evaluate("google.protobuf.Struct{fields: {'uno': 1.0, 'dos': 2.0}}"),
-    #              { "uno" => 1.0, "dos" => 2.0 }
+    assert_equal environment.evaluate("google.protobuf.BoolValue{value: true}"), true
+    assert_equal environment.evaluate("google.protobuf.BytesValue{value: b'foo\\123'}"), "foo\123"
+    assert_equal environment.evaluate("google.protobuf.DoubleValue{value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.FloatValue{value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.Int32Value{value: -123}"), -123
+    assert_equal environment.evaluate("google.protobuf.Int64Value{value: -123}"), -123
+    assert_equal environment.evaluate("google.protobuf.Int32Value{}"), 0
+    assert_equal environment.evaluate("google.protobuf.NullValue{}"), nil
+    assert_equal environment.evaluate("google.protobuf.StringValue{value: 'foo'}"), "foo"
+    assert_equal environment.evaluate("google.protobuf.StringValue{}"), ""
+    assert_equal environment.evaluate("google.protobuf.UInt32Value{value: 123u}"), 123
+    assert_equal environment.evaluate("google.protobuf.UInt64Value{value: 123u}"), 123
+    assert_equal environment.evaluate("google.protobuf.ListValue{values: [3.0, 'foo', null]}"), [3.0, "foo", nil]
+    assert_equal environment.evaluate("google.protobuf.Struct{fields: {'uno': 1.0, 'dos': 2.0}}"),
+                 { "uno" => 1.0, "dos" => 2.0 }
 
-    # assert_equal environment.evaluate("google.protobuf.Value{}"), nil
-    # assert_equal environment.evaluate("google.protobuf.Value{null_value: NullValue.NULL_VALUE}"), nil
-    # assert_equal environment.evaluate("google.protobuf.Value{number_value: 12}"), 12.0
-    # assert_equal environment.evaluate("google.protobuf.Value{number_value: -1.5e3}"), -1500.0
-    # assert_equal environment.evaluate("google.protobuf.Value{string_value: 'bla'}"), "bla"
-    # assert_equal environment.evaluate("google.protobuf.Value{bool_value: true}"), true
+    assert_equal environment.evaluate("google.protobuf.Value{}"), nil
+    assert_equal environment.evaluate("google.protobuf.Value{null_value: NullValue.NULL_VALUE}"), nil
+    assert_equal environment.evaluate("google.protobuf.Value{number_value: 12}"), 12.0
+    assert_equal environment.evaluate("google.protobuf.Value{number_value: -1.5e3}"), -1500.0
+    assert_equal environment.evaluate("google.protobuf.Value{string_value: 'bla'}"), "bla"
+    assert_equal environment.evaluate("google.protobuf.Value{bool_value: true}"), true
     assert_equal environment.evaluate("google.protobuf.Timestamp{seconds: 946702800}"), Time.at(946_702_800)
     assert_equal environment.evaluate("google.protobuf.Duration{seconds: 60}"), Cel::Duration.new(60)
+    assert_equal environment.evaluate(
+      "google.protobuf.Any{" \
+      "type_url: 'type.googleapis.com/google.protobuf.Value', " \
+      "value: b'\x11\x00\x00\x00\x00\x00\x00(@'}"
+    ), 12
   end
 
   def test_var_expression
     assert_raises(Cel::EvaluateError) { environment.evaluate("a == 2") }
     assert_equal environment.evaluate("a == 2", { a: Cel::Number.new(:int, 1) }), false
+    assert_equal environment(a: :timestamp).evaluate("a", { a: "2022-12-25T00:00:00Z" }),
+                 Time.parse("2022-12-25T00:00:00Z")
+    assert_equal environment(a: :timestamp).evaluate("a", { a: Time.parse("2022-12-25T00:00:00Z") }),
+                 Time.parse("2022-12-25T00:00:00Z")
+    assert_equal environment(a: :timestamp).evaluate("a", { a: 1_671_926_400 }), Time.parse("2022-12-25T00:00:00Z")
+    assert_equal environment(a: :timestamp)
+      .evaluate("a", { a: Google::Protobuf::Timestamp.new(seconds: 1_671_926_400) }),
+                 Time.parse("2022-12-25T00:00:00Z")
   end
 
   def test_condition
