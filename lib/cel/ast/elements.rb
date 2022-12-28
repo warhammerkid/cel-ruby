@@ -116,6 +116,8 @@ module Cel
     end
 
     def self.to_cel_type(val)
+      val = Protobuf.convert_from_protobuf(val) if val.is_a?(Google::Protobuf::MessageExts)
+
       case val
       when Literal, Identifier
         val
@@ -136,6 +138,8 @@ module Cel
         Bool.new(val)
       when nil
         Null.new
+      when Time
+        Timestamp.new(val)
       else
         raise BindingError, "can't convert #{val} to CEL type"
       end

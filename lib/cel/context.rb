@@ -2,13 +2,16 @@
 
 module Cel
   class Context
-    def initialize(bindings)
+    def initialize(declarations, bindings)
+      @declarations = declarations
       @bindings = bindings.dup
 
       return unless @bindings
 
       @bindings.each do |k, v|
-        @bindings[k] = to_cel_type(v)
+        val = to_cel_type(v)
+        val = TYPES[@declarations[k]].cast(val) if @declarations && @declarations.key?(k)
+        @bindings[k] = val
       end
     end
 
@@ -24,7 +27,7 @@ module Cel
     end
 
     def merge(bindings)
-      Context.new(@bindings ? @bindings.merge(bindings) : bindings)
+      Context.new(@declarations, @bindings ? @bindings.merge(bindings) : bindings)
     end
 
     private
