@@ -188,6 +188,18 @@ class CelEvaluateTest < Minitest::Test
     assert_equal environment.evaluate("'helloworld'.matches('[0-9]+')"), false
   end
 
+  def test_custom_funcs
+    assert_equal(environment(foo: Cel::Function(:int, :int, return_type: :int) do |a, b|
+                                    a + b
+                                  end).evaluate("foo(2, 2)"), 4)
+    assert_equal(environment(foo: Cel::Function(:int, :int) { |a, b| a + b }).evaluate("foo(2, 2)"), 4)
+    assert_equal(environment(foo: Cel::Function() { |a, b| a + b }).evaluate("foo(2, 2)"), 4)
+    assert_equal(environment(foo: Cel::Function(:int, :int) do |a, b|
+                                    a + b
+                                  end).evaluate("foo(size(\"helloworld\"), 2)"), 12)
+    assert_equal(environment(foo: ->(a, b) { a + b }).evaluate("foo(2, 2)"), 4)
+  end
+
   def test_bindings
     assert_equal environment.evaluate("a", { a: nil }), nil
     assert_equal environment.evaluate("a", { a: true }), true

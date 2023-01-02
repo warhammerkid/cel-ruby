@@ -88,3 +88,6 @@ Style/StringLiteralsInInterpolation:
 
 Performance/RedundantEqualityComparisonBlock:
   Enabled: false
+
+Performance/MethodObjectAsBlock:
+  Enabled: false

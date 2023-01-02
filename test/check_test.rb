@@ -147,6 +147,17 @@ class CelCheckTest < Minitest::Test
     assert_raises(Cel::CheckError) { environment.check("matches('helloworld', 1)") }
   end
 
+  def test_custom_funcs
+    assert_equal environment(foo: Cel::Function(:int, :int, return_type: :int) do |a, b|
+                                    a + b
+                                  end).check("foo(2, 2)"), :int
+    assert_equal environment(foo: Cel::Function(:int, :int) { |a, b| a + b }).check("foo(2, 2)"), :any
+    assert_equal environment(foo: Cel::Function(:int, :int, return_type: :int) do |a, b|
+                                    a + b
+                                  end).check("foo(size(\"helloworld\"), 2)"), :int
+    assert_equal(environment(foo: ->(a, b) { a + b }).check("foo(2, 2)"), :any)
+  end
+
   def test_macros_map_filter
     assert_equal environment.check("[1, 2, 3].all(e, e > 0)"), :bool
     assert_equal environment.check("[1, 2, 3].exists(e, e < 0)"), :bool

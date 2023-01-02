@@ -40,7 +40,7 @@ module Cel
     def evaluate_literal(val)
       case val
       when List
-        List.new(val.value.map { |y| call(y) })
+        List.new(val.value.map(&method(:call)))
       else
         val
       end
@@ -137,15 +137,23 @@ module Cel
       when :has, :size
         Macro.__send__(func, *args)
       when :matches
-        Macro.__send__(func, *args.map { |arg| call(arg) })
+        Macro.__send__(func, *args.map(&method(:call)))
       when :int, :uint, :string, :double, :bytes, :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))
       when :dyn
         call(args.first)
       else
+        return evaluate_custom_func(@context.declarations[func], funcall) if @context.declarations.key?(func)
+
         raise EvaluateError, "#{funcall} is not supported"
       end
+    end
+
+    def evaluate_custom_func(func, funcall)
+      args = funcall.args
+
+      func.call(*args.map(&method(:call)))
     end
   end
 end
