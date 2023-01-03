@@ -121,6 +121,17 @@ module Cel
       unsupported_type(operation)
     end
 
+    def infer_variable_type(var)
+      case var
+      when Identifier
+        check_identifier(var)
+      when Invoke
+        check_invoke(var)
+      else
+        var.type
+      end
+    end
+
     def check_invoke(funcall, var_type = nil)
       var = funcall.var
       func = funcall.func
@@ -128,14 +139,7 @@ module Cel
 
       return check_standard_func(funcall) unless var
 
-      var_type ||= case var
-                   when Identifier
-                     check_identifier(var)
-                   when Invoke
-                     check_invoke(var)
-                   else
-                     var.type
-      end
+      var_type ||= infer_variable_type(var)
 
       case var_type
       when MapType
@@ -221,7 +225,7 @@ module Cel
         when :getDate, :getDayOfMonth, :getDayOfWeek, :getDayOfYear, :getFullYear, :getHours,
              :getMilliseconds, :getMinutes, :getMonth, :getSeconds
           check_arity(func, args, 0..1)
-          return TYPES[:int] if args.size.zero? || (args.size.positive? && args[0] == :string)
+          return TYPES[:int] if args.empty? || (args.size.positive? && args[0] == :string)
         else
           unsupported_type(funcall)
         end
@@ -265,15 +269,18 @@ module Cel
         return TYPES[:bool]
       when :size
         check_arity(func, args, 1)
-        return TYPES[:int] if find_match_all_types(%i[string bytes list map], call(args.first))
+
+        arg = call(args.first)
+        return TYPES[:int] if find_match_all_types(%i[string bytes list map], arg)
       when *CAST_ALLOWED_TYPES.keys
         check_arity(func, args, 1)
         allowed_types = CAST_ALLOWED_TYPES[func]
 
-        return TYPES[func] if find_match_all_types(allowed_types, call(args.first))
+        arg = call(args.first)
+        return TYPES[func] if find_match_all_types(allowed_types, arg)
       when :matches
         check_arity(func, args, 2)
-        return TYPES[:bool] if find_match_all_types(%i[string], args.map { |arg| call(arg) })
+        return TYPES[:bool] if find_match_all_types(%i[string], args.map(&method(:call)))
       when :dyn
         check_arity(func, args, 1)
         arg_type = call(args.first)
@@ -283,7 +290,30 @@ module Cel
         end
         return arg_type
       else
+        return check_custom_func(@declarations[func], funcall) if @declarations.key?(func)
+
         unsupported_type(funcall)
+      end
+
+      unsupported_operation(funcall)
+    end
+
+    def check_custom_func(func, funcall)
+      args = funcall.args
+
+      unless func.is_a?(Cel::Function)
+        raise CheckError, "#{func} must respond to #call" unless func.respond_to?(:call)
+
+        func = Cel::Function(&func)
+      end
+
+      unless func.types.empty?
+        unsupported_type(funcall) unless func.types.zip(args.map(&method(:call)))
+                                             .all? do |expected_type, type|
+                                               expected_type == :any || expected_type == type
+                                             end
+
+        return func.type
       end
 
       unsupported_operation(funcall)

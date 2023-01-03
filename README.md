@@ -71,7 +71,7 @@ puts return_value #=> true
 If `google/protobuf` is available in the environment, `cel-ruby` will also be able to integrate with protobuf declarations in CEL expressions.
 
 ```ruby
-# gem "google-protobuf" in your Gemfile
+require "google/protobuf"
 require "cel"
 
 env = Cel::Environment.new
@@ -79,6 +79,18 @@ env = Cel::Environment.new
 env.evaluate("google.protobuf.Duration{seconds: 123}.seconds == 123") #=> true
 ```
 
+### Custom functions
+
+`cel-ruby` allows you to define custom functions to be used insde CEL expressions. While we **strongly** recommend usage of `Cel::Function` for defining them (due to the ability of them being used for checking), the only requirement is that the function object responds to `.call`:
+
+```ruby
+env = environment(foo: Cel::Function(:int, :int, return_type: :int) { |a, b|  a + b})
+env.evaluate("foo(2, 2)") #=> 4
+
+# this is also possible, just not as type-safe
+env2 = environment(foo: -> (a, b) { a + b})
+env2.evaluate("foo(2, 2)") #=> 4
+```
 
 ## Supported Rubies
 

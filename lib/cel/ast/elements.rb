@@ -101,6 +101,33 @@ module Cel
     end
   end
 
+  class Function
+    attr_reader :types, :type
+
+    def initialize(*types, return_type: nil, &func)
+      unless func.nil?
+        types = Array.new(func.arity) { TYPES[:any] } if types.empty?
+        raise(Error, "number of arg types does not match number of yielded args") unless types.size == func.arity
+      end
+      @types = types.map { |typ| typ.is_a?(Type) ? typ : TYPES[typ] }
+      @type = if return_type.nil?
+        TYPES[:any]
+      else
+        return_type.is_a?(Type) ? return_type : TYPES[return_type]
+      end
+      @func = func
+    end
+
+    def call(*args)
+      Literal.to_cel_type(@func.call(*args))
+    end
+  end
+
+  mod = self
+  mod.define_singleton_method(:Function) do |*args, **kwargs, &blk|
+    mod::Function.new(*args, **kwargs, &blk)
+  end
+
   class Literal < SimpleDelegator
     attr_reader :type, :value
 

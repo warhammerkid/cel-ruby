@@ -2,6 +2,8 @@
 
 module Cel
   class Context
+    attr_reader :declarations
+
     def initialize(declarations, bindings)
       @declarations = declarations
       @bindings = bindings.dup
