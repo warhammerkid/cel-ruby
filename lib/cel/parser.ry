@@ -144,9 +144,18 @@ def parse(str)
   tokenize(str)
   do_parse
 rescue Racc::ParseError => err
-  ex = Cel::ParseError.new(err.message)
-  ex.set_backtrace(err.backtrace)
-  raise ex
+  raise parse_error(err)
+end
+
+def parse_error(error)
+  parse_error = case error.message
+  when /parse error on value "([^"]+)" \(tRESERVED\)/
+    Cel::ParseError.new("invalid usage of the reserved word \"#{$1}\"")
+  else
+    Cel::ParseError.new(error.message)
+  end
+  parse_error.set_backtrace(error.backtrace)
+  parse_error
 end
 
 def tokenize(str)
