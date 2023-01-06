@@ -82,10 +82,14 @@ module Cel
     end
 
     def ==(other)
-      super || (
-        other.respond_to?(:to_ary) &&
+      case other
+      when Invoke
+        @var == other.var && @func == other.func && @args == other.args
+      when Array
         [@var, @func, @args].compact == other
-      )
+      else
+        super
+      end
     end
 
     def to_s
@@ -507,6 +511,10 @@ module Cel
     def initialize(value)
       @value = value
     end
+
+    def ==(other)
+      other.is_a?(Group) && @value == other.value
+    end
   end
 
   class Operation
@@ -521,10 +529,13 @@ module Cel
     end
 
     def ==(other)
-      if other.is_a?(Array)
+      case other
+      when Array
         other.size == @operands.size + 1 &&
           other.first == @op &&
           other.slice(1..-1).zip(@operands).all? { |x1, x2| x1 == x2 }
+      when Operation
+        @op == other.op && @type == other.type && @operands == other.operands
       else
         super
       end
@@ -544,6 +555,10 @@ module Cel
       @if = if_
       @then = then_
       @else = else_
+    end
+
+    def ==(other)
+      other.is_a?(Condition) && @if == other.if && @then == other.then && @else == other.else
     end
   end
 end

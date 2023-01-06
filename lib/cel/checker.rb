@@ -178,6 +178,8 @@ module Cel
 
           unsupported_type(funcall) unless identifier.is_a?(Identifier)
 
+          identifier.type = var_type.element_type
+
           element_checker = merge(identifier.to_sym => var_type.element_type)
 
           unsupported_type(funcall) if element_checker.check(predicate) != :bool
@@ -320,7 +322,7 @@ module Cel
     end
 
     def check_identifier(identifier)
-      return unless identifier.type == :any
+      return identifier.type unless identifier.type == :any
 
       return TYPES[:type] if Cel::PRIMITIVE_TYPES.include?(identifier.to_sym)
 
@@ -334,6 +336,10 @@ module Cel
     end
 
     def check_condition(condition)
+      if_type = call(condition.if)
+
+      raise CheckError, "`#{condition.if}` must evaluate to a bool" unless if_type == :bool
+
       then_type = call(condition.then)
       else_type = call(condition.else)
 
