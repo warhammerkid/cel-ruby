@@ -113,7 +113,7 @@ class CelEvaluateTest < Minitest::Test
                  Time.parse("2022-12-25T00:00:00Z")
 
     err = assert_raises(Cel::ParseError) { environment(size: :int).evaluate("break == 2", { size: 2 }) }
-    assert_match /invalid usage of the reserved word "break"/, err.message
+    assert_match(/invalid usage of the reserved word "break"/, err.message)
   end
 
   def test_condition
