@@ -14,6 +14,8 @@ module Cel
       @type.to_s
     end
 
+    alias_method :to_s, :to_str
+
     def type
       TYPES[:type]
     end

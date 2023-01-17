@@ -14,19 +14,31 @@ module Cel
       ast
     end
 
+    def encode(expr)
+      Encoder.encode(compile(expr))
+    end
+
+    def decode(encoded_expr)
+      ast = Encoder.decode(encoded_expr)
+      @checker.check(ast)
+      ast
+    end
+
     def check(expr)
       ast = @parser.parse(expr)
       @checker.check(ast)
     end
 
     def program(expr)
-      expr = compile(expr) if expr.is_a?(::String)
+      expr = @parser.parse(expr) if expr.is_a?(::String)
+      @checker.check(expr)
       Runner.new(@declarations, expr)
     end
 
     def evaluate(expr, bindings = nil)
       context = Context.new(@declarations, bindings)
-      expr = compile(expr) if expr.is_a?(::String)
+      expr = @parser.parse(expr) if expr.is_a?(::String)
+      @checker.check(expr)
       Program.new(context).evaluate(expr)
     end
 
