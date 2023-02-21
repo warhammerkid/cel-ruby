@@ -29,6 +29,9 @@ Naming/MethodName:
 Gemspec/RequiredRubyVersion:
   Enabled: false
 
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
 Metrics/ClassLength:
   Enabled: false
 
