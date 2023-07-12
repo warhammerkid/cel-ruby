@@ -58,6 +58,10 @@ module Cel
     def get(idx)
       @type_list[idx]
     end
+
+    def ==(other)
+      other == :list || super
+    end
   end
 
   class MapType < Type
@@ -73,12 +77,41 @@ module Cel
       _, value = @type_map.find { |k, _| k == attrib.to_s }
       value
     end
+
+    def ==(other)
+      other == :map || super
+    end
   end
 
   # Primitive Cel Types
 
   PRIMITIVE_TYPES = %i[int uint double bool string bytes list map timestamp duration null_type type].freeze
-  TYPES = PRIMITIVE_TYPES.to_h { |typ| [typ, Type.new(typ)] }
+  COLTYPES = %i[list map].freeze
+  TYPES = (PRIMITIVE_TYPES - COLTYPES).to_h { |typ| [typ, Type.new(typ)] }
   TYPES[:type] = Type.new(:type)
   TYPES[:any] = Type.new(:any)
+
+  module CollectionTypeFetch
+    def [](*args)
+      col_type, elem_type = args
+
+      return super unless COLTYPES.include?(col_type)
+
+      return super if args.size > 2
+
+      elem_type ||= :any
+
+      type = case col_type
+             when :list
+               ListType.new([])
+             when :map
+               MapType.new({})
+      end
+
+      type.element_type = super(*elem_type)
+      type
+    end
+  end
+
+  TYPES.singleton_class.prepend(CollectionTypeFetch)
 end
