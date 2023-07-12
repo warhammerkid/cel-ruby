@@ -45,19 +45,20 @@ end
 prg = env.program(ast)
 # 1.3 evaluate
 return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
-    group: Cel::String.new("acme.co")))
+    group: Cel::String.new("acme.co"))
 
 # 2.1 parse and check
 prg = env.program('name.startsWith("/groups/" + group)')
 # 2.2 then evaluate
 return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
-    group: Cel::String.new("acme.co")))
+    group: Cel::String.new("acme.co"))
 
 # 3. or parse, check and evaluate
 begin
   return_value = env.evaluate(ast,
     name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
-    group: Cel::String.new("acme.co"))
+    group: Cel::String.new("acme.co")
+  )
 rescue Cel::Error => e
   STDERR.puts("evaluation error: #{e.message}")
   raise e

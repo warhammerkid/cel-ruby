@@ -93,7 +93,7 @@ module Cel
       when String
         raise EvaluateError, "#{invoke} is not supported" unless String.method_defined?(func, false)
 
-        var.public_send(func, *args)
+        var.public_send(func, *args.map(&method(:call)))
       when Message
         # If e evaluates to a message and f is not declared in this message, the
         # runtime error no_such_field is raised.
