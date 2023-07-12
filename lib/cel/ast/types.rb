@@ -62,6 +62,10 @@ module Cel
     def ==(other)
       other == :list || super
     end
+
+    def cast(value)
+      List.new(value)
+    end
   end
 
   class MapType < Type
@@ -80,6 +84,10 @@ module Cel
 
     def ==(other)
       other == :map || super
+    end
+
+    def cast(value)
+      Map.new(value)
     end
   end
 

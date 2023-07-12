@@ -103,6 +103,8 @@ class CelEvaluateTest < Minitest::Test
   def test_var_expression
     assert_raises(Cel::EvaluateError) { environment.evaluate("a == 2") }
     assert_equal environment.evaluate("a == 2", { a: Cel::Number.new(:int, 1) }), false
+    assert_equal environment(a: :list).evaluate("a", { a: [1, 2, 3] }),
+                 [1, 2, 3]
     assert_equal environment(a: :timestamp).evaluate("a", { a: "2022-12-25T00:00:00Z" }),
                  Time.parse("2022-12-25T00:00:00Z")
     assert_equal environment(a: :timestamp).evaluate("a", { a: Time.parse("2022-12-25T00:00:00Z") }),
