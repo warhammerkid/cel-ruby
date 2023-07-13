@@ -203,6 +203,9 @@ class CelEvaluateTest < Minitest::Test
                                     a + b
                                   end).evaluate("foo(size(\"helloworld\"), 2)"), 12)
     assert_equal(environment(foo: ->(a, b) { a + b }).evaluate("foo(2, 2)"), 4)
+    assert_equal(environment(intersect: Cel::Function(:list, :list, return_type: :list) do |a, b|
+                                          a & b
+                                        end).evaluate("intersect([1,2], [2])"), [2])
   end
 
   def test_bindings
