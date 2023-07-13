@@ -93,7 +93,7 @@ module Cel
       when String
         raise EvaluateError, "#{invoke} is not supported" unless String.method_defined?(func, false)
 
-        var.public_send(func, *args)
+        var.public_send(func, *args.map(&method(:call)))
       when Message
         # If e evaluates to a message and f is not declared in this message, the
         # runtime error no_such_field is raised.
@@ -134,10 +134,12 @@ module Cel
 
         val.class
       # MACROS
-      when :has, :size
-        Macro.__send__(func, *args)
+      when :has
+        Bool.new(Macro.__send__(func, *args))
+      when :size
+        Cel::Number.new(:int, Macro.__send__(func, *args))
       when :matches
-        Macro.__send__(func, *args.map(&method(:call)))
+        Bool.new(Macro.__send__(func, *args.map(&method(:call))))
       when :int, :uint, :string, :double, :bytes, :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))
@@ -153,7 +155,7 @@ module Cel
     def evaluate_custom_func(func, funcall)
       args = funcall.args
 
-      func.call(*args.map(&method(:call)))
+      func.call(*args.map(&method(:call)).map(&:to_ruby_type))
     end
   end
 end

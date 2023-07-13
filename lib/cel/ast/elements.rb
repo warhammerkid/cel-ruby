@@ -176,6 +176,10 @@ module Cel
       end
     end
 
+    def to_ruby_type
+      @value
+    end
+
     private
 
     def check; end
@@ -296,6 +300,10 @@ module Cel
     def to_ary
       [self]
     end
+
+    def to_ruby_type
+      value.map(&:to_ruby_type)
+    end
   end
 
   class Map < Literal
@@ -316,6 +324,10 @@ module Cel
 
     def to_ary
       [self]
+    end
+
+    def to_ruby_type
+      value.to_h { |*args| args.map(&:to_ruby_type) }
     end
 
     def respond_to_missing?(meth, *args)

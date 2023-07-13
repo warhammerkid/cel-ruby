@@ -167,6 +167,8 @@ class CelCheckTest < Minitest::Test
     assert_equal environment.check("{'a': 1, 'b': 2}.all(e, e.matches('a'))"), :bool
     assert_equal environment.check("{'a': 1, 'b': 2}.exists(e, e.matches('a'))"), :bool
     assert_equal environment.check("{'a': 1, 'b': 2}.exists_one(e, e.matches('a'))"), :bool
+    # compose with other features
+    assert_equal environment(target_list: Cel::TYPES[:list, :int]).check("size(target_list.filter(e, e < 0))"), :int
   end
 
   def test_the_mothership

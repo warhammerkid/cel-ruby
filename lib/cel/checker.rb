@@ -148,7 +148,7 @@ module Cel
         case func
         when :[]
           attribute = var_type.get(args)
-          unsupported_operation(funcall) unless attribute
+          return TYPES[:any] unless attribute
         when :all, :exists, :exists_one
           check_arity(funcall, args, 2)
           identifier, predicate = args
@@ -162,7 +162,7 @@ module Cel
           return TYPES[:bool]
         else
           attribute = var_type.get(func)
-          unsupported_operation(funcall) unless attribute
+          return TYPES[:any] unless attribute
         end
 
         call(attribute)
@@ -381,7 +381,7 @@ module Cel
         end
       end
 
-      TYPES[type]
+      type && types.is_a?(Type) ? types : TYPES[type]
     end
 
     def check_arity(func, args, arity)
