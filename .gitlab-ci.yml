@@ -102,6 +102,7 @@ ruby32:
 
 coverage:
   stage: prepare
+  coverage: '/\(\d+.\d+\%\) covered/'
   dependencies:
     - truffleruby
     - jruby
@@ -120,7 +121,7 @@ coverage:
 
 pages:
   stage: deploy
-  dependencies:
+  needs:
     - coverage
   script:
     - mkdir public
@@ -129,5 +130,6 @@ pages:
     - master
   artifacts:
     paths:
-      - public
+      - coverage/
+      - public/
     expire_in: 30 days
