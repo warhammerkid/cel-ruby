@@ -1,8 +1,8 @@
 # Cel::Ruby
 
 [![Gem Version](https://badge.fury.io/rb/cel.svg)](http://rubygems.org/gems/cel)
-[![pipeline status](https://gitlab.com/honeyryderchuck/cel-ruby/badges/master/pipeline.svg)](https://gitlab.com/honeyryderchuck/cel-ruby/pipelines?page=1&scope=all&ref=master)
-[![coverage report](https://gitlab.com/honeyryderchuck/cel-ruby/badges/master/coverage.svg?job=coverage)](https://honeyryderchuck.gitlab.io/cel-ruby/coverage/#_AllFiles)
+[![pipeline status](https://gitlab.com/os85/cel-ruby/badges/master/pipeline.svg)](https://gitlab.com/os85/cel-ruby/pipelines?page=1&scope=all&ref=master)
+[![coverage report](https://gitlab.com/os85/cel-ruby/badges/master/coverage.svg?job=coverage)](https://os85.gitlab.io/cel-ruby/coverage/#_AllFiles)
 
 Pure Ruby implementation of Google Common Expression Language, https://opensource.google/projects/cel.
 
