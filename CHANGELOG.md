@@ -1,5 +1,38 @@
 ## [Unreleased]
 
+## [0.2.1] - 2023-07-26
+
+
+### Improvements
+
+Collection type declarations are now better supported, i.e. declaring "an array of strings" is now possible:
+
+```ruby
+Cel::Types[:list, :string] # array of strings
+Cel::Environment.new(
+    names: Cel::Types[:list, :string],
+    owned_by: Cel::Types[:map, :string] # hash map of string keys
+)
+```
+
+### Bugfixes
+
+Collections passed as variables of an expression are now correctly cast to Cel types:
+
+```ruby
+env.evaluate("a", { a: [1, 2, 3] }) #=> now returns a Cel::List
+```
+
+Conversely, custom functions now expose ruby types in the blocks, instead of its Cel counterparts:
+
+```ruby
+func = Cel::Function(:list, :list, return_type: :list) do |a, b|
+  # a is now a ruby array, b as well
+  a & b
+  # function returns a ruby array, will be converted to a Cel::List for use in the expression
+end
+```
+
 ## [0.2.0] - 2023-01-17
 
 ### Features

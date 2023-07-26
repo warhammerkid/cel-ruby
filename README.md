@@ -67,6 +67,20 @@ end
 puts return_value #=> true
 ```
 
+### types
+
+`cel-ruby` supports declaring the types of variables in the environment, which allows for expression checking:
+
+```ruby
+env = Cel::Environment.new(
+  first_name: :string, # shortcut for Cel::Types[:string]
+  middle_names: Cel::Types[:list, :string], # list of strings
+  last_name: :string
+)
+
+# you can use Cel::Types to access any type of primitive type, i.e. Cel::Types[:bytes]
+```
+
 ### protobuf
 
 If `google/protobuf` is available in the environment, `cel-ruby` will also be able to integrate with protobuf declarations in CEL expressions.
