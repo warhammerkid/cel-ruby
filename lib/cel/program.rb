@@ -135,11 +135,11 @@ module Cel
         val.class
       # MACROS
       when :has
-        Bool.new(Macro.__send__(func, *args))
+        Macro.__send__(func, *args)
       when :size
         Cel::Number.new(:int, Macro.__send__(func, *args))
       when :matches
-        Bool.new(Macro.__send__(func, *args.map(&method(:call))))
+        Macro.__send__(func, *args.map(&method(:call)))
       when :int, :uint, :string, :double, :bytes, :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))

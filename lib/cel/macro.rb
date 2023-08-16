@@ -43,21 +43,24 @@ module Cel
     end
 
     def all(collection, identifier, predicate, context:)
-      collection.all? do |element, *|
+      return_value = collection.all? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
+      Bool.new(return_value)
     end
 
     def exists(collection, identifier, predicate, context:)
-      collection.any? do |element, *|
+      return_value = collection.any? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
+      Bool.new(return_value)
     end
 
     def exists_one(collection, identifier, predicate, context:)
-      collection.one? do |element, *|
+      return_value = collection.one? do |element, *|
         Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
       end
+      Bool.new(return_value)
     end
 
     def filter(collection, identifier, predicate, context:)
