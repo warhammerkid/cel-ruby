@@ -60,17 +60,19 @@ module Cel
       if operation.unary? &&
          op != "!" # https://bugs.ruby-lang.org/issues/18246
         # unary operations
-        values.first.__send__(:"#{op}@")
+        Literal.to_cel_type(values.first.__send__(:"#{op}@"))
       elsif op == "&&"
-        Bool.new(values.all? { |x| true == x }) # rubocop:disable Style/YodaCondition
+        Bool.new(values.all? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
       elsif op == "||"
-        Bool.new(values.any? { |x| true == x }) # rubocop:disable Style/YodaCondition
+        Bool.new(values.any? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
       elsif op == "in"
         element, collection = values
         Bool.new(collection.include?(element))
       else
         op_value, *values = values
-        op_value.public_send(op, *values)
+        val = op_value.public_send(op, *values)
+
+        Literal.to_cel_type(val)
       end
     end
 
