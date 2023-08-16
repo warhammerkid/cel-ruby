@@ -143,6 +143,7 @@ module Cel
     end
 
     def ==(other)
+      other = other.value if other.is_a?(Literal)
       @value == other || super
     end
 
@@ -194,7 +195,7 @@ module Cel
       OUT
     end
 
-    LOGICAL_OPERATORS.each do |op|
+    (LOGICAL_OPERATORS - %w[==]).each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           Bool.new(super)
@@ -208,12 +209,16 @@ module Cel
       super(:bool, value)
     end
 
-    LOGICAL_OPERATORS.each do |op|
+    (LOGICAL_OPERATORS - %w[==]).each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           Bool.new(super)
         end
       OUT
+    end
+
+    def !
+      Bool.new(super)
     end
   end
 
@@ -246,14 +251,6 @@ module Cel
       Macro.matches(self, pattern)
     end
 
-    LOGICAL_OPERATORS.each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          other.is_a?(Cel::Literal) ? Bool.new(super) : super
-        end
-      OUT
-    end
-
     %i[+ -].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
@@ -272,7 +269,7 @@ module Cel
       [self]
     end
 
-    LOGICAL_OPERATORS.each do |op|
+    (LOGICAL_OPERATORS - %w[==]).each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
           Bool.new(super)
