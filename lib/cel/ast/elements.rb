@@ -355,7 +355,7 @@ module Cel
   class Timestamp < Literal
     def initialize(value)
       value = case value
-              when String then Time.parse(value)
+              when ::String then Time.parse(value)
               when Numeric then Time.at(value)
               else value
       end
@@ -440,7 +440,7 @@ module Cel
   class Duration < Literal
     def initialize(value)
       value = case value
-              when String
+              when ::String
                 init_from_string(value)
               when Hash
                 seconds, nanos = value.values_at(:seconds, :nanos)
