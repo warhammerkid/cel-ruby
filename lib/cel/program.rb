@@ -57,7 +57,7 @@ module Cel
         ev_operand
       end
 
-      if values.size == 1 &&
+      if operation.unary? &&
          op != "!" # https://bugs.ruby-lang.org/issues/18246
         # unary operations
         values.first.__send__(:"#{op}@")

@@ -550,6 +550,10 @@ module Cel
       end
     end
 
+    def unary?
+      @operands.size == 1
+    end
+
     def to_s
       return "#{@op}#{@operands.first}" if @operands.size == 1
 
