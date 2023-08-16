@@ -60,9 +60,15 @@ module Cel
 
         value = value.fetch(key, value)
 
-        value = Number.new(:double, value) if key == "number_value"
-
-        value
+        value = case key
+                when "null_value"
+                  Null.new if value.zero?
+                when "number_value"
+                  value = -value.operands.first if value.is_a?(Operation) && value.op == "-" && value.unary?
+                  Number.new(:double, value)
+                else
+                  value
+        end
       when "BoolValue", "google.protobuf.BoolValue"
         value = value.nil? ? Bool.new(false) : value[Identifier.new("value")]
       when "BytesValue", "google.protobuf.BytesValue"

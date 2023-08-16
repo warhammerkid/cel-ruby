@@ -57,20 +57,22 @@ module Cel
         ev_operand
       end
 
-      if values.size == 1 &&
+      if operation.unary? &&
          op != "!" # https://bugs.ruby-lang.org/issues/18246
         # unary operations
-        values.first.__send__(:"#{op}@")
+        Literal.to_cel_type(values.first.__send__(:"#{op}@"))
       elsif op == "&&"
-        Bool.new(values.all? { |x| true == x }) # rubocop:disable Style/YodaCondition
+        Bool.new(values.all? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
       elsif op == "||"
-        Bool.new(values.any? { |x| true == x }) # rubocop:disable Style/YodaCondition
+        Bool.new(values.any? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
       elsif op == "in"
         element, collection = values
         Bool.new(collection.include?(element))
       else
         op_value, *values = values
-        op_value.public_send(op, *values)
+        val = op_value.public_send(op, *values)
+
+        Literal.to_cel_type(val)
       end
     end
 
@@ -120,7 +122,7 @@ module Cel
     end
 
     def evaluate_condition(condition)
-      call(condition.if) ? call(condition.then) : call(condition.else)
+      call(condition.if).value ? call(condition.then) : call(condition.else)
     end
 
     def evaluate_standard_func(funcall)
@@ -135,11 +137,11 @@ module Cel
         val.class
       # MACROS
       when :has
-        Bool.new(Macro.__send__(func, *args))
+        Macro.__send__(func, *args)
       when :size
         Cel::Number.new(:int, Macro.__send__(func, *args))
       when :matches
-        Bool.new(Macro.__send__(func, *args.map(&method(:call))))
+        Macro.__send__(func, *args.map(&method(:call)))
       when :int, :uint, :string, :double, :bytes, :duration, :timestamp
         type = TYPES[func]
         type.cast(call(args.first))

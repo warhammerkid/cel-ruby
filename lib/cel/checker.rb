@@ -357,7 +357,7 @@ module Cel
 
       return unless typ
 
-      return convert(typ) if id_call_chain.empty?
+      convert(typ) if id_call_chain.empty?
     end
 
     def convert(typ)

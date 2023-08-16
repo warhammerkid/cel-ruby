@@ -21,6 +21,8 @@ module Cel
     end
 
     def cast(value)
+      value = value.value if value.is_a?(Literal)
+
       case @type
       when :int
         Number.new(:int, Integer(value))
