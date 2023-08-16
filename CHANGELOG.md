@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.2.2] - 2023-08-17
+
+* Reimplements `Cel::Literal#==` in a simpler way, to avoid several comparison issues arising from the previous implementation.
+* fix initialization of `Cel::Duration` and `Cel::Timestamp` from string notation.
+* fix protobuf-to-cel parsing of negative literals.
+* more consistent usage of Cel types internally.
+* fix condition clause evaluation.
+
+
 ## [0.2.1] - 2023-07-26
 
 
