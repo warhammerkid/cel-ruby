@@ -122,7 +122,7 @@ module Cel
     end
 
     def evaluate_condition(condition)
-      call(condition.if) ? call(condition.then) : call(condition.else)
+      call(condition.if).value ? call(condition.then) : call(condition.else)
     end
 
     def evaluate_standard_func(funcall)
