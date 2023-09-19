@@ -2,10 +2,21 @@
 
 require "time"
 require "delegate"
-require_relative "elements/protobuf"
 
 module Cel
-  LOGICAL_OPERATORS = %w[< <= >= > == != in].freeze
+  begin
+    require_relative "elements/protobuf"
+  rescue LoadError
+    module Protobuf
+      module_function
+
+      def method_missing(*) # rubocop:disable Style/MissingRespondToMissing
+        raise Error, "\"google/protobuf\" is required in order to use this feature"
+      end
+    end
+  end
+
+  LOGICAL_OPERATORS = %w[<= >= < > == != in].freeze
   MULTI_OPERATORS = %w[* / %].freeze
 
   class Identifier < SimpleDelegator

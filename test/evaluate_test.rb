@@ -6,7 +6,16 @@ class CelEvaluateTest < Minitest::Test
   def test_literal_expression
     assert_equal 1, environment.evaluate("1").value
     assert_nil environment.evaluate("null").value
+    assert_equal 4, environment.evaluate("2 + 2").value
+    assert_equal 0, environment.evaluate("2 - 2").value
+    assert_equal 4, environment.evaluate("2 * 2").value
+    assert_equal 1, environment.evaluate("2 / 2").value
     assert_equal false, environment.evaluate("1 == 2").value
+    assert_equal true, environment.evaluate("1 != 2").value
+    assert_equal true, environment.evaluate("1 < 3").value
+    assert_equal true, environment.evaluate("3 > 1").value
+    assert_equal true, environment.evaluate("1 <= 3").value
+    assert_equal true, environment.evaluate("3 >= 1").value
     assert_equal true, environment.evaluate("'hello' == 'hello'").value
     assert_equal false, environment.evaluate("'hello' == 'hellohello'").value
     assert_equal false, environment.evaluate("'hello' == 'world'").value
