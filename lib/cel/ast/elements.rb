@@ -16,7 +16,7 @@ module Cel
     end
   end
 
-  LOGICAL_OPERATORS = %w[< <= >= > == != in].freeze
+  LOGICAL_OPERATORS = %w[<= >= < > == != in].freeze
   MULTI_OPERATORS = %w[* / %].freeze
 
   class Identifier < SimpleDelegator
