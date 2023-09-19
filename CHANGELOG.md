@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.2.3] - 2023-09-19
+
+### Bugfixes
+
+* `cel` is loadable without the need to install `google/protobuf` again.
++ expressions containing te operator `<=` were failing while parsing.
+
 ## [0.2.2] - 2023-08-17
 
 * Reimplements `Cel::Literal#==` in a simpler way, to avoid several comparison issues arising from the previous implementation.
