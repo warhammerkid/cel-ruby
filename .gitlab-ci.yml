@@ -34,7 +34,7 @@ jruby:
 truffleruby:
   before_script:
     - bundle install
-  image: "ghcr.io/graalvm/truffleruby:latest"
+  image: "ghcr.io/graalvm/truffleruby-community:latest"
   script:
     - bundle exec rake test
   allow_failure: true
