@@ -24,6 +24,7 @@ jruby:
   variables:
     JRUBY_OPTS: "--debug"
   before_script:
+    - apt-get update && apt-get install -y build-essential
     - bundle install
   image: "jruby:9.4"
   script:
