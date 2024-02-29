@@ -80,8 +80,8 @@ module Cel
         id.type = TYPES[type.to_sym]
         id
       in ["lit", "list", *items]
-        list = List.new(items.map(&method(:decode)))
-        list
+        List.new(items.map(&method(:decode)))
+
       in ["lit", "map", items]
         Map.new(items.map(&method(:decode)).each_slice(2))
       in ["lit", /\Aint|uint|double\z/ => type, Integer => val]
