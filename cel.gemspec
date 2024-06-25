@@ -31,9 +31,7 @@ Gem::Specification.new do |spec|
 
   spec.require_paths = ["lib"]
 
-  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.3.0')
-    spec.add_dependency 'bigdecimal'
-  end
+  spec.add_dependency "bigdecimal"
 
   spec.add_development_dependency "minitest"
   spec.add_development_dependency "tzinfo"
