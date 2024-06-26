@@ -30,6 +30,9 @@ Gem::Specification.new do |spec|
   spec.extra_rdoc_files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md"]
 
   spec.require_paths = ["lib"]
+
+  spec.add_dependency "bigdecimal"
+
   spec.add_development_dependency "minitest"
   spec.add_development_dependency "tzinfo"
 end
