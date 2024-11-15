@@ -55,7 +55,7 @@ task :conformance do
     
       # Crashes because Encoding::BPM does not exist?
       "basic/self_eval_nonzeroish/self_eval_unicode_escape_four",
-      "comparisons/eq_literal/not_eq_double_uint",
+      "comparisons/eq_literal/no_string_normalization",
     
       # No support for \U[0-9a-f]{8} 32-bit encoding
       "basic/self_eval_nonzeroish/self_eval_unicode_escape_eight",
