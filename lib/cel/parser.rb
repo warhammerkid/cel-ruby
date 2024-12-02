@@ -39,9 +39,9 @@ OPERATORS_RE = Regexp.union(*OPERATORS.keys)
 
 BACKSLASH = "\\\\" # Must be literally two backslashes for proper interpolation
 DIGIT     = "[0-9]"
-EXPONENT  = "(?<exponent>[eE][+-]?#{DIGIT}+)"
+EXPONENT  = "(?:[eE][+-]?#{DIGIT}+)"
 HEXDIGIT  = "[0-9a-fA-F]"
-RAW       = "[rR]"
+RAW       = "(?<raw>[rR])"
 
 ESC_CHAR_SEQ = "#{BACKSLASH}[abfnrtv\"'#{BACKSLASH}?`]"
 ESC_OCT_SEQ  = "#{BACKSLASH}[0-3][0-7]{2}"
@@ -59,24 +59,24 @@ NUM_FLOAT_REGEX = Regexp.union(
 )
 
 NUM_INT_REGEX = Regexp.union(
-  /0x(#{HEXDIGIT}+)/,
-  /(#{DIGIT}+)/
+  /0x(?<hex>#{HEXDIGIT}+)/,
+  /(?<dec>#{DIGIT}+)/
 )
 
 NUM_UINT_REGEX = Regexp.union(
-  /0x(#{HEXDIGIT}+)[uU]/,
-  /(#{DIGIT}+)[uU]/
+  /0x(?<hex>#{HEXDIGIT}+)[uU]/,
+  /(?<dec>#{DIGIT}+)[uU]/
 )
 
 STRING_REGEX = Regexp.union(
-  /"""((?:#{ESC_SEQ}|[^\\])*)"""/,
-  /'''((?:#{ESC_SEQ}|[^\\])*)'''/,
-  /"((?:#{ESC_SEQ}|[^\\"\n\r])*)"/,
-  /'((?:#{ESC_SEQ}|[^\\'\n\r])*)'/,
-  /#{RAW}"""(.*?)"""/m,
-  /#{RAW}'''(.*?)'''/m,
-  /#{RAW}"([^"\n\r]*)"/,
-  /#{RAW}'([^'\n\r]*)'/,
+  /"""(?<str>(?:#{ESC_SEQ}|[^\\])*)"""/,
+  /'''(?<str>(?:#{ESC_SEQ}|[^\\])*)'''/,
+  /"(?<str>(?:#{ESC_SEQ}|[^\\"\n\r])*)"/,
+  /'(?<str>(?:#{ESC_SEQ}|[^\\'\n\r])*)'/,
+  /#{RAW}"""(?<str>.*?)"""/m,
+  /#{RAW}'''(?<str>.*?)'''/m,
+  /#{RAW}"(?<str>[^"\n\r]*)"/,
+  /#{RAW}'(?<str>[^'\n\r]*)'/,
 )
 
 BYTES_REGEX = /[bB]#{STRING_REGEX}/
@@ -124,15 +124,13 @@ def tokenize(str)
     when scanner.scan(NUM_FLOAT_REGEX)
       @q << [:tDOUBLE, Float(scanner.matched)]
     when scanner.scan(NUM_UINT_REGEX)
-      hex, num = scanner.captures
-      @q << [:tUINT, hex ? hex.to_i(16) : num.to_i]
+      @q << [:tUINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
     when scanner.scan(NUM_INT_REGEX)
-      hex, num = scanner.captures
-      @q << [:tINT, hex ? hex.to_i(16) : num.to_i]
+      @q << [:tINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
     when scanner.scan(STRING_REGEX)
-      @q << [:tSTRING, convert_to_string(scanner.captures)]
+      @q << [:tSTRING, convert_to_string(scanner[:raw], scanner[:str])]
     when scanner.scan(BYTES_REGEX)
-      str = convert_to_string(scanner.captures)
+      str = convert_to_string(scanner[:raw], scanner[:str])
       @q << [:tBYTES, convert_to_bytes(str)]
     when scanner.scan(IDENTIFIER_REGEX)
       word = scanner.matched
@@ -180,12 +178,9 @@ CHAR_SEQ_MAP = {
   "\\`" => "`",
 }.freeze
 ESC_SEQ_REGEX = /#{ESC_SEQ}/
-def convert_to_string(captures)
-  index = captures.index { |c| !c.nil? }
-  str = captures[index]
-
+def convert_to_string(raw, str)
   # Raw strings do not interpret escape sequences
-  return str if index > 3
+  return str if raw
 
   # Parse and convert all escape sequences
   str.gsub(ESC_SEQ_REGEX) do |match|
