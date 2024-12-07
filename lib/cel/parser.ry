@@ -267,12 +267,16 @@ def convert_to_string(raw, str)
   str.gsub(ESC_SEQ_REGEX) do |match|
     case match[1]
     when "0", "1", "2", "3"
+      # Octal sequence - ESC_OCT_SEQ
       match[2..].to_i(8).chr
     when "x", "X"
+      # Hex sequence - ESC_BYTE_SEQ
       match[2..].to_i(16).chr
     when "u", "U"
+      # Unicode escape sequence - ESC_UNI_SEQ
       [match[2..].to_i(16)].pack('U')
     else
+      # Char escape sequence - ESC_CHAR_SEQ
       CHAR_SEQ_MAP.fetch(match)
     end
   end
