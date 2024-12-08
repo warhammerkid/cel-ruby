@@ -75,8 +75,8 @@ class CelParseTest < Minitest::Test
       [%('""'), "\"\""], # String of two double-quote characters
       [%('''x''x'''), "x''x"], # String of four characters "x''x"
       [%("\\""), "\""], # String of one double-quote character
-      [%("\\"), "\\"], # String of one backslash character
-      [%(r"\\"), "\\\\"], # String of two backslash characters
+      [%("\\\\"), "\\"], # String of one backslash character
+      [%(r"\\\\"), "\\\\"], # String of two backslash characters
     ]
   end
 
