@@ -759,7 +759,7 @@ module_eval(<<'.,.,', 'parser.ry', 65)
 
 module_eval(<<'.,.,', 'parser.ry', 67)
   def _reduce_39(val, _values, result)
-     result = nil
+     result = {}
     result
   end
 .,.,
