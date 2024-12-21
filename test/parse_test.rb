@@ -43,6 +43,14 @@ class CelParseTest < Minitest::Test
     assert_equal parser.parse("{a: 1, b: 2, c: 3}"), { a: 1, b: 2, c: 3 }
   end
 
+  def test_reserved_indentifier_parsing
+    parser = Cel::Parser.new
+    assert_equal parser.parse("a.const"), ["a", :const]
+
+    err = assert_raises(Cel::ParseError) { parser.parse("break == 2") }
+    assert_match(/invalid usage of the reserved word "break"/, err.message)
+  end
+
   def test_funcall
     assert_equal parser.parse("type(1)"), [:type, [1]]
   end
