@@ -65,7 +65,7 @@ rule
   maybe_expr_list: expr_list
                  | { result = [] }
 
-  maybe_map_inits: { result = nil }
+  maybe_map_inits: { result = {} }
                  | map_inits
 
   expr_list: expr_list ',' expr { result = Array(val[0]) << val[2] }

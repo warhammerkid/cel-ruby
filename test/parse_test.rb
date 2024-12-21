@@ -39,6 +39,7 @@ class CelParseTest < Minitest::Test
     assert_equal parser.parse("[1]"), [1]
     assert_equal parser.parse("[1, 2, 3]"), [1, 2, 3]
     assert_equal parser.parse("[1, 2, 3, 4, 5.0]"), [1, 2, 3, 4, 5.0]
+    assert_equal parser.parse("{}"), {}
     assert_equal parser.parse("{a: 1, b: 2, c: 3}"), { a: 1, b: 2, c: 3 }
   end
 
