@@ -1,5 +1,5 @@
 class Cel::Parser
-  token tINT tUINT tDOUBLE tBOOL tNULL tSTRING tBYTES tRESERVED tIDENTIFIER
+  token tINT tUINT tDOUBLE tBOOL tNULL tSTRING tBYTES tIDENTIFIER
         tMULTIOP tADDOP tSUBOP tRELOP tANDOP tOROP tEOF
   prechigh
     nonassoc UMINUS
@@ -52,8 +52,8 @@ rule
         | member '{' maybe_field_inits '}' { result = Cel::Message.new(val[0], val[2]) }
 
 
-  primary:  identifier { result = Cel::Identifier.new(val[0]) }
-         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: val[0], args: [val[2]].flatten(1)) }
+  primary:  identifier { result = Cel::Identifier.new(validated_id!(val[0])) }
+         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: validated_id!(val[0]), args: [val[2]].flatten(1)) }
          | '(' expr ')' { result = Cel::Group.new(val[1]) }
          | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
          | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }
@@ -179,12 +179,7 @@ rescue Racc::ParseError => err
 end
 
 def parse_error(error)
-  parse_error = case error.message
-  when /parse error on value "([^"]+)" \(tRESERVED\)/
-    Cel::ParseError.new("invalid usage of the reserved word \"#{$1}\"")
-  else
-    Cel::ParseError.new(error.message)
-  end
+  parse_error = Cel::ParseError.new(error.message)
   parse_error.set_backtrace(error.backtrace)
   parse_error
 end
@@ -221,8 +216,6 @@ def tokenize(str)
         @q << [:tBOOL, true]
       elsif word == "false"
         @q << [:tBOOL, false]
-      elsif RESERVED.include?(word)
-        @q << [:tRESERVED, scanner.matched]
       elsif word == "in"
         @q << [OPERATORS[scanner.matched], scanner.matched]
       else
@@ -284,6 +277,14 @@ end
 
 def convert_to_bytes(str)
   str.unpack("C*")
+end
+
+# Checks whether the given identifier token is a reserved word or not. Throws
+# a ParseError if it's a reserved word.
+def validated_id!(identifier)
+  return identifier unless RESERVED.include?(identifier)
+
+  raise Cel::ParseError.new("invalid usage of the reserved word \"#{identifier}\"")
 end
 
 ---- footer
