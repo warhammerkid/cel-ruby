@@ -1,4 +1,5 @@
 stages:
+  - build
   - test
   - prepare
   - deploy
@@ -19,6 +20,30 @@ variables:
 .before_script: &before_script
   - ruby -v
   - bundle install
+
+generate_conformance_protos:
+  stage: build
+  image: python
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - apt-get update -y
+    - apt install -y protobuf-compiler
+    - git clone --depth 1 https://github.com/google/cel-spec.git
+    - git clone --depth 1 https://github.com/googleapis/googleapis.git
+    - pip install protobuf
+    - protoc -Icel-spec/proto -Igoogleapis --python_out=. cel-spec/proto/cel/expr/*.proto cel-spec/proto/cel/expr/conformance/**/*.proto googleapis/google/rpc/status.proto
+  script:
+    - PYTHONPATH=. python conformance/support/convert_to_proto.py
+    - mv testdata/ conformance/
+    # TODO: figure out issues with proto2
+    - rm conformance/testdata/proto2_ext.json conformance/testdata/type_deduction.json
+  artifacts:
+    paths:
+      - conformance/testdata
 
 jruby:
   variables:
@@ -111,6 +136,25 @@ ruby33:
   script:
     - bundle exec rake test
     - bundle exec rake rubocop
+  artifacts:
+    paths:
+      - coverage
+conformance:
+  needs:
+    - generate_conformance_protos
+  variables:
+    COVERAGE_KEY: "$RUBY_ENGINE-$RUBY_VERSION-conformance-tests"
+  allow_failure: true
+  before_script:
+    - bundle install
+    # - export RUBYOPT="-rbundler/setup -rrbs/test/setup"
+    # - export RBS_TEST_RAISE="true"
+    # - export RBS_TEST_LOGLEVEL="error"
+    # - export RBS_TEST_OPT="-Isig"
+    # - export RBS_TEST_TARGET="HTTP2Next*"
+  image: "ruby:3.3"
+  script:
+    - bundle exec rake conformance
   artifacts:
     paths:
       - coverage
