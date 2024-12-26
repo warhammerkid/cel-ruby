@@ -2,11 +2,17 @@
 
 require "bundler/gem_tasks"
 require "rake/testtask"
+require "minitest/test_task"
 
 Rake::TestTask.new do |t|
   t.libs = %w[lib test]
   t.pattern = "test/*_test.rb"
   t.warning = false
+end
+
+Minitest::TestTask.create(:conformance) do |t|
+  t.libs = %w[conformance lib test .]
+  t.test_globs = %w[conformance/conformance_test.rb]
 end
 
 begin

@@ -7,6 +7,7 @@ AllCops:
   TargetRubyVersion: 3.1
   DisplayCopNames: true
   Include:
+    - conformance/*.rb
     - lib/**/*.rb
     - test/**/*.rb
     - Rakefile
