@@ -56,9 +56,14 @@ module Cel
     end
 
     def self.modify_tree!(ast, &)
-      replacement = yield(ast)
-      ast = replacement if replacement
+      # Modify node until it no longer is modified
+      modified = false
+      while (replacement = yield(ast))
+        modified = true
+        ast = replacement
+      end
 
+      # Walk children
       case ast
       when AST::Nested
         expr = modify_tree!(ast.expr, &)
@@ -99,7 +104,7 @@ module Cel
         raise "Unexpected node: #{ast.inspect}"
       end
 
-      replacement
+      modified ? ast : nil
     end
   end
 end

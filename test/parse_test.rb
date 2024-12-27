@@ -137,6 +137,7 @@ class CelParseTest < Minitest::Test
     assert_equal ast { tc({ "a" => "b" }, "size") }, parse("{'a':'b'}.size()")
     assert_equal ast { c("[]", { 0 => 1, 2 => 2, 5 => true }, 5) }, parse("{0:1,2:2,5:true}[5]")
     assert_equal ast { c("-", -4) }, parse("-(-4)")
+    assert_equal ast { -4 }, parse("--(-4)")
     assert_equal ast { c("!", false) }, parse("!!!!!false")
     assert_equal ast { c("==", 1, 2) }, parse("1 == 2")
     assert_equal ast { c("+", 3, c("*", 5, 4)) }, parse("3 + 5 * 4")
