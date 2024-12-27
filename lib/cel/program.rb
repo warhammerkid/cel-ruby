@@ -69,6 +69,8 @@ module Cel
         case operand
         when Cel::Message, Cel::Map
           operand.public_send(ast.field)
+        when Protobuf::EnumLookup
+          operand.select(ast.field)
         else
           raise EvaluateError, "select is not supported on: #{operand}"
         end

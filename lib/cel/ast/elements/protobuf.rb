@@ -128,5 +128,29 @@ module Cel
         Literal.to_cel_type(value)
       end
     end
+
+    # TODO: This probably needs to be completely re-worked
+    def lookup_enum(identifier)
+      EnumLookup.new(identifier.id)
+    end
+
+    # Magical object that eventually returns the enum value if enough selects
+    # are chained to it
+    class EnumLookup
+      def initialize(name)
+        @name = name
+      end
+
+      def select(field)
+        enum = Google::Protobuf::DescriptorPool.generated_pool.lookup(@name)
+        if enum.is_a?(Google::Protobuf::EnumDescriptor)
+          # Return the enum value
+          Cel::Number.new(:int, enum.lookup_name(field.to_sym))
+        else
+          # Keep chaining in the hopes it's a valid enum eventually
+          EnumLookup.new("#{@name}.#{field}")
+        end
+      end
+    end
   end
 end

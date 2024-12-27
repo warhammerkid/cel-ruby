@@ -18,14 +18,19 @@ module Cel
     end
 
     def lookup(identifier)
-      raise EvaluateError, "no value in context for #{identifier}" unless @bindings
+      # Check bindings first
+      if @bindings
+        id = identifier.id
+        val = @bindings.dig(*id.split(".").map(&:to_sym))
+        return val if val
+      end
 
-      id = identifier.id
-      val = @bindings.dig(*id.split(".").map(&:to_sym))
+      # If protobufs are enabled, check protobuf environment for an enum
+      if Cel::Protobuf.respond_to?(:lookup_enum) && identifier.id == "google"
+        return Cel::Protobuf.lookup_enum(identifier)
+      end
 
-      raise EvaluateError, "no value in context for #{identifier}" unless val
-
-      val
+      raise EvaluateError, "no value in context for #{identifier}"
     end
 
     def merge(bindings)
