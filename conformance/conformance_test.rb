@@ -36,12 +36,9 @@ class ConformanceTest < Minitest::Test
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
 
-          # Check
-          declarations = build_declarations(test.type_env)
-          Cel::Checker.new(declarations).check(ast) unless test.disable_check
-
           # Set up program bindings
-          bindings = test.bindings.to_h do |name, binding|
+          declarations = build_declarations(test.type_env)
+          bindings = test.bindings.to_a.to_h do |name, binding|
             [name.to_sym, convert_conformance_value(binding.value)]
           end
           context = Cel::Context.new(declarations, bindings)

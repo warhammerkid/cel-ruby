@@ -76,7 +76,6 @@ module Cel
       when "DoubleValue", "google.protobuf.DoubleValue",
            "FloatValue", "google.protobuf.FloatValue"
         value = value.nil? ? Number.new(:double, 0.0) : value[Identifier.new("value")]
-        value.type = TYPES[:double]
       when "Int32Value", "google.protobuf.Int32Value",
            "Int64Value", "google.protobuf.Int64Value"
         value = value.nil? ? Number.new(:int, 0) : value[Identifier.new("value")]

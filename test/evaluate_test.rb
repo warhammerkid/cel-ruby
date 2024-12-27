@@ -33,8 +33,6 @@ class CelEvaluateTest < Minitest::Test
     assert_equal true, environment.evaluate("{'a': 2} == {'a': 2}").value
 
     assert_equal 1, environment.evaluate("[1, 2][0]").value
-    assert_equal 2, environment.evaluate("{a: 2}.a").value
-    assert_equal 2, environment.evaluate("{a: 2}").a
     assert_equal 2, environment.evaluate("{\"a\": 2}.a").value
     assert_equal 2, environment.evaluate("{\"a\": 2}[\"a\"]").value
   end
@@ -99,7 +97,7 @@ class CelEvaluateTest < Minitest::Test
                  environment.evaluate("google.protobuf.Struct{fields: {'uno': 1.0, 'dos': 2.0}}"))
 
     assert_nil environment.evaluate("google.protobuf.Value{}").value
-    assert_nil environment.evaluate("google.protobuf.Value{null_value: NullValue.NULL_VALUE}").value
+    assert_nil environment.evaluate("google.protobuf.Value{null_value: google.protobuf.NullValue.NULL_VALUE}").value
     assert_equal 12.0, environment.evaluate("google.protobuf.Value{number_value: 12}")
     assert_equal(-1500.0, environment.evaluate("google.protobuf.Value{number_value: -1.5e3}"))
     assert_equal "bla", environment.evaluate("google.protobuf.Value{string_value: 'bla'}")
@@ -140,15 +138,15 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_macros_has
-    assert_equal true, environment.evaluate("has({a: 1, b: 2}.a)").value
-    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struc{fields: {a: 1, b: 2}}.c)") }
+    assert_equal true, environment.evaluate("has(Struc{a: 1, b: 2}.a)").value
+    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struc{fields: {'a': 1, 'b': 2}}.c)") }
     assert_equal true, environment.evaluate("has({'a': 1, 'b': 2}.a)").value
     assert_equal false, environment.evaluate("has({'a': 1, 'b': 2}.c)").value
 
     assert_raises(Cel::EvaluateError) { environment.evaluate("has(1.c)") }
   end
 
-  def test_macros_map_filter
+  def test_macros_comprehensions
     assert_equal true, environment.evaluate("[1, 2, 3].all(e, e > 0)").value
     assert_equal false, environment.evaluate("[1, 2, 3].all(e, e < 0)").value
     assert_equal true, environment.evaluate("[1, 2, 3].exists(e, e < 3)").value

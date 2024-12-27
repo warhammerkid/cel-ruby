@@ -258,10 +258,6 @@ module Cel
       Bool.new(@value.start_with?(string))
     end
 
-    def matches(pattern)
-      Macro.matches(self, pattern)
-    end
-
     %i[+ -].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         def #{op}(other)
@@ -311,6 +307,12 @@ module Cel
 
     def to_ruby_type
       value.map(&:to_ruby_type)
+    end
+
+    def +(other)
+      raise EvaluateError, "Cannot append non-list" unless other.is_a?(List)
+
+      List.new(@value + other.value)
     end
   end
 
