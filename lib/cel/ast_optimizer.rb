@@ -93,7 +93,7 @@ module Cel
 
         value = modify_tree!(ast.value, &)
         ast.value = value unless value.nil?
-      when AST::Literal, AST::Identifier
+      when AST::Literal, AST::Identifier, AST::Comprehension
         # Do nothing
       else
         raise "Unexpected node: #{ast.inspect}"

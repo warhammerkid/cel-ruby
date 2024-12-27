@@ -114,5 +114,28 @@ module Cel
           && @entries == other.entries
       end
     end
+
+    # Matches up to cel.expr.Expr.Comprehension in cel/expr/syntax.proto
+    class Comprehension < Expr
+      attr_accessor :iter_var, :iter_range, :accu_var, :accu_init, :loop_condition, :loop_step, :result
+
+      def initialize(iter_var:, iter_range:, accu_var:, accu_init:, loop_condition:, loop_step:, result:)
+        super()
+        @iter_var = iter_var
+        @iter_range = iter_range
+        @accu_var = accu_var
+        @accu_init = accu_init
+        @loop_condition = loop_condition
+        @loop_step = loop_step
+        @result = result
+      end
+
+      def ==(other)
+        other.is_a?(Comprehension) && @iter_var == other.iter_var \
+          && @iter_range == other.iter_range && @accu_var == other.accu_var \
+          && @accu_init == other.accu_init && @loop_condition == other.loop_condition \
+          && @loop_step == other.loop_step && @result == other.result
+      end
+    end
   end
 end

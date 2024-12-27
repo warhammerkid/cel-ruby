@@ -200,7 +200,8 @@ def global_call(function, *args)
 end
 
 def receiver_call(target, function, *args)
-  Cel::AST::Call.new(target, function, args)
+  node = Cel::Macro.rewrite_receiver(target, function, args) if @enable_macros
+  node || Cel::AST::Call.new(target, function, args)
 end
 
 def create_message(message_name, entries)

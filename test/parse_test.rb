@@ -34,6 +34,25 @@ module AstShorthand
     Cel::AST::CreateStruct.new(name, entries)
   end
 
+  def self._(iter, iter_var, accu_init, loop_step, loop_condition, accu_var: nil, result: nil)
+    raise "iter_var must be a symbol" unless iter_var.is_a?(Symbol)
+    raise "accu_var must be a symbol" unless accu_var.nil? || accu_var.is_a?(Symbol)
+
+    Cel::AST::Comprehension.new(
+      iter_var: iter_var.to_s,
+      iter_range: wrap_ruby_value(iter),
+      accu_var: accu_var ? accu_var.to_s : Cel::Macro::ACCUMULATOR_NAME,
+      accu_init: wrap_ruby_value(accu_init),
+      loop_condition: wrap_ruby_value(loop_condition),
+      loop_step: wrap_ruby_value(loop_step),
+      result: result ? wrap_ruby_value(result) : accu
+    )
+  end
+
+  def self.accu
+    Cel::Macro.accu_ident
+  end
+
   def self.wrap_ruby_value(value)
     case value
     when Cel::AST::Expr then value
@@ -144,6 +163,17 @@ class CelParseTest < Minitest::Test
     assert_equal ast { s({}, "a", t: true) }, parse("has({}.a)")
     assert_equal ast { s({ "a" => 1, "b" => 2 }, "a", t: true) }, parse("has({'a': 1, 'b': 2}.a)")
     assert_raises(Cel::ParseError) { parse("has(a)") }
+  end
+
+  def test_all_macro
+    assert_equal(
+      ast { _([], :e, true, c("&&", accu, c(">", :e, 0)), c("@not_strictly_false", accu)) },
+      parse("[].all(e, e > 0)")
+    )
+    assert_equal(
+      ast { _([1, 2, 3], :e, true, c("&&", accu, c(">", :e, 0)), c("@not_strictly_false", accu)) },
+      parse("[1, 2, 3].all(e, e > 0)")
+    )
   end
 
   private
