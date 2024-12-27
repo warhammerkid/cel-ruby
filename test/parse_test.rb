@@ -140,6 +140,12 @@ class CelParseTest < Minitest::Test
     assert_raises(Cel::ParseError) { parse("< 1 2") }
   end
 
+  def test_has_macro
+    assert_equal ast { s({}, "a", t: true) }, parse("has({}.a)")
+    assert_equal ast { s({ "a" => 1, "b" => 2 }, "a", t: true) }, parse("has({'a': 1, 'b': 2}.a)")
+    assert_raises(Cel::ParseError) { parse("has(a)") }
+  end
+
   private
 
   def parse(expr)

@@ -9,10 +9,11 @@ require 'racc/parser.rb'
 require "strscan"
 require "cel/ast"
 require "cel/ast_optimizer"
+require "cel/macro"
 module Cel
   class Parser < Racc::Parser
 
-module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 106)
+module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 107)
 
 CONDITIONAL_OPERATOR = "?:"
 INDEX_OPERATOR = "[]"
@@ -92,6 +93,10 @@ var void while
 ].freeze
 
 IDENTIFIER_REGEX = /[_a-zA-Z][_a-zA-Z0-9]*/
+
+def initialize(enable_macros: true)
+  @enable_macros = enable_macros
+end
 
 def parse(str)
   tokenize(str)
@@ -190,7 +195,8 @@ def bytes_literal(parts)
 end
 
 def global_call(function, *args)
-  Cel::AST::Call.new(nil, function, args)
+  node = Cel::Macro.rewrite_global(function, args) if @enable_macros
+  node || Cel::AST::Call.new(nil, function, args)
 end
 
 def receiver_call(target, function, *args)
