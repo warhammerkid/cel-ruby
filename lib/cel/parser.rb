@@ -6,15 +6,18 @@
 
 require 'racc/parser.rb'
 
-require 'strscan'
-require 'bigdecimal'
-require 'cel/ast/elements'
+require "strscan"
+require "cel/ast"
+require "cel/ast_optimizer"
 module Cel
   class Parser < Racc::Parser
 
-module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 97)
+module_eval(<<'...end parser.ry/module_eval...', 'parser.ry', 106)
 
-
+CONDITIONAL_OPERATOR = "?:"
+INDEX_OPERATOR = "[]"
+LOGICAL_OPERATORS = %w[<= >= < > == != in].freeze
+MULTI_OPERATORS = %w[* / %].freeze
 
 OPERATORS = if RUBY_VERSION < "2.7.0"
   {
@@ -22,12 +25,12 @@ OPERATORS = if RUBY_VERSION < "2.7.0"
     "||" => :tOROP,
     "+" => :tADDOP,
     "-" => :tSUBOP,
-  }.merge(Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
-   .merge(Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
+  }.merge(Hash[LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
+   .merge(Hash[MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
 else
   {
-    **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
-    **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
+    **Hash[LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+    **Hash[MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
     "&&" => :tANDOP,
     "||" => :tOROP,
     "+" => :tADDOP,
@@ -59,13 +62,13 @@ NUM_FLOAT_REGEX = Regexp.union(
 )
 
 NUM_INT_REGEX = Regexp.union(
-  /0x(?<hex>#{HEXDIGIT}+)/,
-  /(?<dec>#{DIGIT}+)/
+  /0x#{HEXDIGIT}+/,
+  /#{DIGIT}+/
 )
 
 NUM_UINT_REGEX = Regexp.union(
-  /0x(?<hex>#{HEXDIGIT}+)[uU]/,
-  /(?<dec>#{DIGIT}+)[uU]/
+  /0x#{HEXDIGIT}+[uU]/,
+  /#{DIGIT}+[uU]/
 )
 
 STRING_REGEX = Regexp.union(
@@ -92,7 +95,7 @@ IDENTIFIER_REGEX = /[_a-zA-Z][_a-zA-Z0-9]*/
 
 def parse(str)
   tokenize(str)
-  do_parse
+  AstOptimizer.optimize!(do_parse)
 rescue Racc::ParseError => err
   raise parse_error(err)
 end
@@ -117,16 +120,15 @@ def tokenize(str)
     when scanner.scan(COMMENT_REGEX)
       # skip comment lines
     when scanner.scan(NUM_FLOAT_REGEX)
-      @q << [:tDOUBLE, Float(scanner.matched)]
+      @q << [:tDOUBLE, scanner.matched]
     when scanner.scan(NUM_UINT_REGEX)
-      @q << [:tUINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
+      @q << [:tUINT, scanner.matched]
     when scanner.scan(NUM_INT_REGEX)
-      @q << [:tINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
+      @q << [:tINT, scanner.matched]
     when scanner.scan(STRING_REGEX)
-      @q << [:tSTRING, convert_to_string(scanner[:raw], scanner[:str])]
+      @q << [:tSTRING, { raw: scanner[:raw], str: scanner[:str] }]
     when scanner.scan(BYTES_REGEX)
-      str = convert_to_string(scanner[:raw], scanner[:str])
-      @q << [:tBYTES, convert_to_bytes(str)]
+      @q << [:tBYTES, { raw: scanner[:raw], str: scanner[:str] }]
     when scanner.scan(IDENTIFIER_REGEX)
       word = scanner.matched
       if word == "null"
@@ -154,6 +156,58 @@ end
 
 def next_token
   @q.shift
+end
+
+def int_literal(str)
+  base = 10
+  if str.start_with?("0x")
+    base = 16
+    str = str[2..]
+  end
+  Cel::AST::Literal.new(:int, str.to_i(base))
+end
+
+def uint_literal(str)
+  base = 10
+  if str.start_with?("0x")
+    base = 16
+    str = str[2..]
+  end
+  Cel::AST::Literal.new(:uint, str.to_i(base))
+end
+
+def double_literal(str)
+  Cel::AST::Literal.new(:double, Float(str))
+end
+
+def string_literal(parts)
+  Cel::AST::Literal.new(:string, convert_to_string(parts[:raw], parts[:str]))
+end
+
+def bytes_literal(parts)
+  string = convert_to_string(parts[:raw], parts[:str])
+  Cel::AST::Literal.new(:bytes, string.unpack("C*"))
+end
+
+def global_call(function, *args)
+  Cel::AST::Call.new(nil, function, args)
+end
+
+def receiver_call(target, function, *args)
+  Cel::AST::Call.new(target, function, args)
+end
+
+def create_message(message_name, entries)
+  # The message name will be either an Identifer or chain of Select nodes. We
+  # want to convert this to a single string.
+  parts = []
+  while message_name.is_a?(Cel::AST::Select)
+    parts.unshift(message_name.field)
+    message_name = message_name.operand
+  end
+  parts.unshift(message_name.name)
+
+  Cel::AST::CreateStruct.new(parts.join("."), entries)
 end
 
 CHAR_SEQ_MAP = {
@@ -194,10 +248,6 @@ def convert_to_string(raw, str)
   end
 end
 
-def convert_to_bytes(str)
-  str.unpack("C*")
-end
-
 # Checks whether the given identifier token is a reserved word or not. Throws
 # a ParseError if it's a reserved word.
 def validated_id!(identifier)
@@ -205,7 +255,6 @@ def validated_id!(identifier)
 
   raise Cel::ParseError.new("invalid usage of the reserved word \"#{identifier}\"")
 end
-
 ...end parser.ry/module_eval...
 ##### State transition tables begin ###
 
@@ -213,16 +262,16 @@ racc_action_table = [
     22,    23,    24,    25,    26,    27,    28,    20,    38,    29,
     13,    39,    38,    40,     4,    39,     4,    40,    12,    21,
     16,    33,    17,    34,    18,    22,    23,    24,    25,    26,
-    27,    28,    20,    38,    32,    32,    39,    31,    40,    78,
+    27,    28,    20,    38,    32,    32,    39,    31,    40,    80,
     35,    36,    37,    42,    21,    16,    47,    17,    55,    18,
     22,    23,    24,    25,    26,    27,    28,    20,    35,    36,
     45,    22,    23,    24,    25,    26,    27,    28,    20,    21,
-    16,    13,    17,    56,    18,    64,    68,    72,    73,    12,
-    21,    16,    74,    17,    75,    18,    22,    23,    24,    25,
-    26,    27,    28,    20,    76,    77,    13,    33,    34,    37,
-    37,    79,    80,    81,    12,    21,    16,    82,    17,    83,
-    18,    22,    23,    24,    25,    26,    27,    28,    20,    84,
-    90,    13,    92,    93,    94,   nil,   nil,   nil,   nil,    12,
+    16,    13,    17,    56,    18,    64,    68,    74,    75,    12,
+    21,    16,    76,    17,    77,    18,    22,    23,    24,    25,
+    26,    27,    28,    20,    78,    79,    13,    33,    34,    37,
+    37,    81,    82,    83,    12,    21,    16,    84,    17,    85,
+    18,    22,    23,    24,    25,    26,    27,    28,    20,    86,
+    87,    13,    93,    96,    97,    98,   nil,   nil,   nil,    12,
     21,    16,   nil,    17,   nil,    18,    22,    23,    24,    25,
     26,    27,    28,    20,   nil,   nil,    13,   nil,   nil,   nil,
    nil,   nil,   nil,   nil,    12,    21,    16,   nil,    17,   nil,
@@ -269,7 +318,10 @@ racc_action_table = [
    nil,   nil,   nil,   nil,   nil,    12,    21,    16,   nil,    17,
    nil,    18,    22,    23,    24,    25,    26,    27,    28,    20,
    nil,   nil,    13,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-    12,    21,    16,   nil,    17,   nil,    18 ]
+    12,    21,    16,   nil,    17,   nil,    18,    22,    23,    24,
+    25,    26,    27,    28,    20,   nil,   nil,    13,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,    12,    21,    16,   nil,    17,
+   nil,    18 ]
 
 racc_action_check = [
      0,     0,     0,     0,     0,     0,     0,     0,    11,     1,
@@ -284,7 +336,7 @@ racc_action_check = [
     17,    17,    17,    17,    53,    54,    17,    58,    59,    61,
     62,    64,    65,    66,    17,    17,    17,    67,    17,    68,
     17,    18,    18,    18,    18,    18,    18,    18,    18,    71,
-    82,    18,    86,    89,    90,   nil,   nil,   nil,   nil,    18,
+    72,    18,    84,    89,    92,    93,   nil,   nil,   nil,    18,
     18,    18,   nil,    18,   nil,    18,    31,    31,    31,    31,
     31,    31,    31,    31,   nil,   nil,    31,   nil,   nil,   nil,
    nil,   nil,   nil,   nil,    31,    31,    31,   nil,    31,   nil,
@@ -311,27 +363,30 @@ racc_action_check = [
     42,    45,    45,    45,    45,    45,    45,    45,    45,   nil,
    nil,    45,    47,    47,    47,    47,    47,    47,    47,    47,
     45,    45,    47,    45,   nil,    45,   nil,   nil,   nil,   nil,
-    47,    47,    47,   nil,    47,   nil,    47,    74,    74,    74,
-    74,    74,    74,    74,    74,   nil,   nil,    74,   nil,   nil,
-   nil,   nil,   nil,   nil,   nil,    74,    74,    74,   nil,    74,
-   nil,    74,    76,    76,    76,    76,    76,    76,    76,    76,
-   nil,   nil,    76,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-    76,    76,    76,   nil,    76,   nil,    76,    77,    77,    77,
-    77,    77,    77,    77,    77,   nil,   nil,    77,   nil,   nil,
-   nil,   nil,   nil,   nil,   nil,    77,    77,    77,   nil,    77,
-   nil,    77,    78,    78,    78,    78,    78,    78,    78,    78,
+    47,    47,    47,   nil,    47,   nil,    47,    76,    76,    76,
+    76,    76,    76,    76,    76,   nil,   nil,    76,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,    76,    76,    76,   nil,    76,
+   nil,    76,    78,    78,    78,    78,    78,    78,    78,    78,
    nil,   nil,    78,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
     78,    78,    78,   nil,    78,   nil,    78,    79,    79,    79,
     79,    79,    79,    79,    79,   nil,   nil,    79,   nil,   nil,
    nil,   nil,   nil,   nil,   nil,    79,    79,    79,   nil,    79,
-   nil,    79,    83,    83,    83,    83,    83,    83,    83,    83,
-   nil,   nil,    83,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-    83,    83,    83,   nil,    83,   nil,    83,    92,    92,    92,
-    92,    92,    92,    92,    92,   nil,   nil,    92,   nil,   nil,
-   nil,   nil,   nil,   nil,   nil,    92,    92,    92,   nil,    92,
-   nil,    92,    94,    94,    94,    94,    94,    94,    94,    94,
-   nil,   nil,    94,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-    94,    94,    94,   nil,    94,   nil,    94 ]
+   nil,    79,    80,    80,    80,    80,    80,    80,    80,    80,
+   nil,   nil,    80,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
+    80,    80,    80,   nil,    80,   nil,    80,    81,    81,    81,
+    81,    81,    81,    81,    81,   nil,   nil,    81,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,    81,    81,    81,   nil,    81,
+   nil,    81,    85,    85,    85,    85,    85,    85,    85,    85,
+   nil,   nil,    85,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
+    85,    85,    85,   nil,    85,   nil,    85,    87,    87,    87,
+    87,    87,    87,    87,    87,   nil,   nil,    87,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,    87,    87,    87,   nil,    87,
+   nil,    87,    96,    96,    96,    96,    96,    96,    96,    96,
+   nil,   nil,    96,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
+    96,    96,    96,   nil,    96,   nil,    96,    98,    98,    98,
+    98,    98,    98,    98,    98,   nil,   nil,    98,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,    98,    98,    98,   nil,    98,
+   nil,    98 ]
 
 racc_action_pointer = [
     -2,     9,     0,   nil,   nil,    19,     7,    10,    29,    32,
@@ -341,55 +396,57 @@ racc_action_pointer = [
     67,   nil,   334,    -9,   nil,   359,    12,   370,    54,    53,
     54,   nil,    57,    66,    76,   nil,   nil,    20,    83,    85,
     47,    89,    90,   nil,    79,    77,    76,    79,    90,   nil,
-   nil,    96,   nil,   nil,   395,   nil,   420,   445,   470,   495,
-   nil,   nil,   111,   520,   nil,   nil,   103,   nil,   nil,   100,
-   105,   nil,   545,   nil,   570,   nil,   nil ]
+   nil,    96,    92,   nil,   nil,   nil,   395,   nil,   420,   445,
+   470,   495,   nil,   nil,   113,   520,   nil,   545,   nil,   104,
+   nil,   nil,   101,   106,   nil,   nil,   570,   nil,   595,   nil,
+   nil ]
 
 racc_action_default = [
-   -56,   -56,   -56,    -2,    -3,    -5,    -7,    -9,   -11,   -14,
-   -16,   -17,   -56,   -56,   -24,   -29,   -56,   -38,   -39,   -34,
-   -35,   -56,   -49,   -50,   -51,   -52,   -53,   -54,   -55,   -56,
-    -1,   -56,   -56,   -56,   -56,   -56,   -56,   -56,   -56,   -56,
-   -43,   -18,   -56,   -21,   -19,   -56,   -23,   -38,   -56,   -56,
-   -37,   -42,   -56,   -40,   -56,   -36,    97,   -56,    -6,    -8,
-   -10,   -12,   -13,   -15,   -25,   -56,   -56,   -44,   -56,   -20,
-   -22,   -56,   -31,   -32,   -56,   -33,   -56,   -56,   -56,   -38,
-   -27,   -28,   -56,   -56,   -30,   -41,   -56,   -48,    -4,   -56,
-   -56,   -46,   -56,   -26,   -56,   -47,   -45 ]
+   -63,   -63,   -63,    -2,    -3,    -5,    -7,    -9,   -11,   -14,
+   -16,   -17,   -63,   -63,   -24,   -29,   -63,   -46,   -51,   -34,
+   -35,   -63,   -56,   -57,   -58,   -59,   -60,   -61,   -62,   -63,
+    -1,   -63,   -63,   -63,   -63,   -63,   -63,   -63,   -63,   -63,
+   -41,   -18,   -63,   -21,   -19,   -63,   -23,   -37,   -63,   -63,
+   -47,   -50,   -63,   -52,   -63,   -36,   101,   -63,    -6,    -8,
+   -10,   -12,   -13,   -15,   -25,   -63,   -63,   -42,   -63,   -20,
+   -22,   -63,   -38,   -40,   -31,   -32,   -48,   -33,   -53,   -63,
+   -63,   -37,   -27,   -28,   -43,   -63,   -30,   -63,   -49,   -63,
+   -55,    -4,   -63,   -63,   -45,   -39,   -63,   -26,   -63,   -54,
+   -44 ]
 
 racc_goto_table = [
-     2,    49,    43,    46,    44,     1,     3,    41,    30,    61,
-    62,    57,    58,    59,    60,    63,    48,    66,    54,    52,
-    53,    67,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,    71,    43,   nil,   nil,    46,    70,    69,   nil,    65,
+     2,    71,    44,    43,    46,     1,     3,    41,    30,    61,
+    62,    57,    58,    59,    60,    63,    48,    51,    54,    66,
+    49,    52,    67,    50,    53,   nil,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,    43,    70,    92,    46,    69,   nil,    65,
    nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
    nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,   nil,    89,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,   nil,   nil,    85,   nil,    86,    87,    88,   nil,
-   nil,   nil,   nil,    91,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,    95,   nil,    96 ]
+   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,    88,   nil,    89,    90,
+    91,   nil,   nil,   nil,   nil,    94,   nil,    95,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,    99,   nil,   100 ]
 
 racc_goto_check = [
-     2,    14,    10,    10,    12,     1,     3,    11,     3,     8,
-     8,     4,     5,     6,     7,     9,     2,    15,     2,    17,
-    20,    21,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,    14,    10,   nil,   nil,    10,    12,    11,   nil,     2,
+     2,    14,    12,    10,    10,     1,     3,    11,     3,     8,
+     8,     4,     5,     6,     7,     9,     2,     2,     2,    15,
+    17,    18,    21,    22,    23,   nil,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,    10,    12,    14,    10,    11,   nil,     2,
    nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
    nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,   nil,    14,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,   nil,   nil,     2,   nil,     2,     2,     2,   nil,
-   nil,   nil,   nil,     2,   nil,   nil,   nil,   nil,   nil,   nil,
-   nil,   nil,     2,   nil,     2 ]
+   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,     2,   nil,     2,     2,
+     2,   nil,   nil,   nil,   nil,     2,   nil,     2,   nil,   nil,
+   nil,   nil,   nil,   nil,   nil,   nil,     2,   nil,     2 ]
 
 racc_goto_pointer = [
    nil,     5,     0,     6,   -20,   -20,   -20,   -20,   -26,   -22,
-   -10,    -5,    -9,   nil,   -16,   -23,   nil,     1,   nil,   nil,
-     2,   -19 ]
+    -9,    -5,   -11,   nil,   -46,   -21,   nil,     3,     3,   nil,
+   nil,   -18,     6,     6 ]
 
 racc_goto_default = [
-   nil,   nil,    51,   nil,     5,     6,     7,     8,     9,    10,
-    11,   nil,   nil,    14,   nil,   nil,    15,   nil,    19,    50,
-   nil,   nil ]
+   nil,   nil,    73,   nil,     5,     6,     7,     8,     9,    10,
+    11,   nil,   nil,    14,   nil,   nil,    15,   nil,   nil,    19,
+    72,   nil,   nil,   nil ]
 
 racc_reduce_table = [
   0, 0, :racc_error,
@@ -428,30 +485,37 @@ racc_reduce_table = [
   3, 42, :_reduce_33,
   1, 42, :_reduce_none,
   1, 45, :_reduce_none,
-  2, 45, :_reduce_none,
+  2, 45, :_reduce_36,
+  0, 43, :_reduce_37,
   1, 43, :_reduce_none,
-  0, 43, :_reduce_38,
-  0, 46, :_reduce_39,
-  1, 46, :_reduce_none,
-  3, 48, :_reduce_41,
-  1, 48, :_reduce_42,
-  0, 44, :_reduce_43,
+  3, 49, :_reduce_39,
+  1, 49, :_reduce_40,
+  0, 44, :_reduce_41,
   1, 44, :_reduce_none,
-  5, 50, :_reduce_45,
-  3, 50, :_reduce_46,
-  5, 49, :_reduce_47,
-  3, 49, :_reduce_48,
-  1, 47, :_reduce_49,
-  1, 47, :_reduce_50,
-  1, 47, :_reduce_51,
-  1, 47, :_reduce_52,
-  1, 47, :_reduce_53,
-  1, 47, :_reduce_54,
-  1, 47, :_reduce_55 ]
+  2, 44, :_reduce_43,
+  5, 50, :_reduce_44,
+  3, 50, :_reduce_45,
+  0, 46, :_reduce_46,
+  1, 46, :_reduce_none,
+  2, 46, :_reduce_48,
+  3, 51, :_reduce_49,
+  1, 51, :_reduce_50,
+  0, 47, :_reduce_51,
+  1, 47, :_reduce_none,
+  2, 47, :_reduce_53,
+  5, 52, :_reduce_54,
+  3, 52, :_reduce_55,
+  1, 48, :_reduce_56,
+  1, 48, :_reduce_57,
+  1, 48, :_reduce_58,
+  1, 48, :_reduce_59,
+  1, 48, :_reduce_60,
+  1, 48, :_reduce_61,
+  1, 48, :_reduce_62 ]
 
-racc_reduce_n = 56
+racc_reduce_n = 63
 
-racc_shift_n = 97
+racc_shift_n = 101
 
 racc_token_table = {
   false => 0,
@@ -552,11 +616,13 @@ Racc_token_to_s_table = [
   "maybe_expr_list",
   "maybe_field_inits",
   "identifier",
+  "maybe_list_inits",
   "maybe_map_inits",
   "literal",
   "expr_list",
-  "map_inits",
-  "field_inits" ]
+  "field_inits",
+  "list_inits",
+  "map_inits" ]
 Ractor.make_shareable(Racc_token_to_s_table) if defined?(Ractor)
 
 Racc_debug_parser = false
@@ -573,7 +639,7 @@ Racc_debug_parser = false
 
 module_eval(<<'.,.,', 'parser.ry', 17)
   def _reduce_4(val, _values, result)
-     result = Cel::Condition.new(val[0], val[2], val[4])
+     result = global_call(CONDITIONAL_OPERATOR, val[0], val[2], val[4])
     result
   end
 .,.,
@@ -582,7 +648,7 @@ module_eval(<<'.,.,', 'parser.ry', 17)
 
 module_eval(<<'.,.,', 'parser.ry', 20)
   def _reduce_6(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
@@ -591,7 +657,7 @@ module_eval(<<'.,.,', 'parser.ry', 20)
 
 module_eval(<<'.,.,', 'parser.ry', 23)
   def _reduce_8(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
@@ -600,7 +666,7 @@ module_eval(<<'.,.,', 'parser.ry', 23)
 
 module_eval(<<'.,.,', 'parser.ry', 26)
   def _reduce_10(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
@@ -609,14 +675,14 @@ module_eval(<<'.,.,', 'parser.ry', 26)
 
 module_eval(<<'.,.,', 'parser.ry', 29)
   def _reduce_12(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 30)
   def _reduce_13(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
@@ -625,7 +691,7 @@ module_eval(<<'.,.,', 'parser.ry', 30)
 
 module_eval(<<'.,.,', 'parser.ry', 33)
   def _reduce_15(val, _values, result)
-     result = Cel::Operation.new(val[1], [val[0], val[2]])
+     result = global_call(val[1], val[0], val[2])
     result
   end
 .,.,
@@ -636,21 +702,21 @@ module_eval(<<'.,.,', 'parser.ry', 33)
 
 module_eval(<<'.,.,', 'parser.ry', 38)
   def _reduce_18(val, _values, result)
-     result = Cel::Operation.new("!", [val[1]])
+     result = global_call("!", val[1])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 39)
   def _reduce_19(val, _values, result)
-     result = Cel::Operation.new("-", [val[1]])
+     result = global_call("-", val[1])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 41)
   def _reduce_20(val, _values, result)
-     result = Cel::Operation.new("!", [val[1]])
+     result = global_call("!", val[1])
     result
   end
 .,.,
@@ -659,7 +725,7 @@ module_eval(<<'.,.,', 'parser.ry', 41)
 
 module_eval(<<'.,.,', 'parser.ry', 44)
   def _reduce_22(val, _values, result)
-     result = Cel::Operation.new("-", [val[1]])
+     result = global_call("-", val[1])
     result
   end
 .,.,
@@ -670,63 +736,63 @@ module_eval(<<'.,.,', 'parser.ry', 44)
 
 module_eval(<<'.,.,', 'parser.ry', 48)
   def _reduce_25(val, _values, result)
-     result = Cel::Invoke.new(var: val[0], func: val[2])
+     result = Cel::AST::Select.new(val[0], val[2])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 49)
   def _reduce_26(val, _values, result)
-     result = Cel::Invoke.new(var: val[0], func: val[2], args: [val[4]].flatten(1))
+     result = receiver_call(val[0], val[2], *val[4])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 50)
   def _reduce_27(val, _values, result)
-     result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2])
+     result = global_call(INDEX_OPERATOR, val[0], val[2])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 51)
   def _reduce_28(val, _values, result)
-     result = Cel::Message.new(val[0], val[2])
+     result = create_message(val[0], val[2])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 54)
   def _reduce_29(val, _values, result)
-     result = Cel::Identifier.new(validated_id!(val[0]))
+     result = Cel::AST::Identifier.new(validated_id!(val[0]))
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 55)
   def _reduce_30(val, _values, result)
-     result = Cel::Invoke.new(func: validated_id!(val[0]), args: [val[2]].flatten(1))
+     result = global_call(validated_id!(val[0]), *val[2])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 56)
   def _reduce_31(val, _values, result)
-     result = Cel::Group.new(val[1])
+     result = Cel::AST::Nested.new(val[1])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 57)
   def _reduce_32(val, _values, result)
-     result = Cel::List.new(Array(val[1]))
+     result = Cel::AST::CreateList.new(val[1])
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 58)
   def _reduce_33(val, _values, result)
-     result = Cel::Map.new(Hash[val[1]])
+     result = Cel::AST::CreateStruct.new("", val[1])
     result
   end
 .,.,
@@ -735,122 +801,171 @@ module_eval(<<'.,.,', 'parser.ry', 58)
 
 # reduce 35 omitted
 
-# reduce 36 omitted
+module_eval(<<'.,.,', 'parser.ry', 62)
+  def _reduce_36(val, _values, result)
+     result = val[0] + val[1]
+    result
+  end
+.,.,
 
-# reduce 37 omitted
-
-module_eval(<<'.,.,', 'parser.ry', 65)
-  def _reduce_38(val, _values, result)
+module_eval(<<'.,.,', 'parser.ry', 64)
+  def _reduce_37(val, _values, result)
      result = []
     result
   end
 .,.,
 
+# reduce 38 omitted
+
 module_eval(<<'.,.,', 'parser.ry', 67)
   def _reduce_39(val, _values, result)
-     result = {}
+     result = val[0] << val[2]
     result
   end
 .,.,
 
-# reduce 40 omitted
+module_eval(<<'.,.,', 'parser.ry', 68)
+  def _reduce_40(val, _values, result)
+     result = [val[0]]
+    result
+  end
+.,.,
 
 module_eval(<<'.,.,', 'parser.ry', 70)
   def _reduce_41(val, _values, result)
-     result = Array(val[0]) << val[2]
+     result = []
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'parser.ry', 71)
-  def _reduce_42(val, _values, result)
-     [val[0]]
-    result
-  end
-.,.,
+# reduce 42 omitted
 
-module_eval(<<'.,.,', 'parser.ry', 73)
+module_eval(<<'.,.,', 'parser.ry', 72)
   def _reduce_43(val, _values, result)
-     result = nil
+     result = val[0]
     result
   end
 .,.,
 
-# reduce 44 omitted
+module_eval(<<'.,.,', 'parser.ry', 74)
+  def _reduce_44(val, _values, result)
+     result = val[0] << Cel::AST::Entry.new(val[2], val[4])
+    result
+  end
+.,.,
 
-module_eval(<<'.,.,', 'parser.ry', 76)
+module_eval(<<'.,.,', 'parser.ry', 75)
   def _reduce_45(val, _values, result)
-     result = val[0].merge(Cel::Identifier.new(val[2]) => val[4])
+     result = [Cel::AST::Entry.new(val[0], val[2])]
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 77)
   def _reduce_46(val, _values, result)
-     result = { Cel::Identifier.new(val[0]) => val[2] }
+     result = []
     result
   end
 .,.,
+
+# reduce 47 omitted
 
 module_eval(<<'.,.,', 'parser.ry', 79)
-  def _reduce_47(val, _values, result)
-     val[0][val[2]] = val[4]; result = val[0]
+  def _reduce_48(val, _values, result)
+     result = val[0]
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'parser.ry', 80)
-  def _reduce_48(val, _values, result)
-     result = { val[0] => val[2] }
+module_eval(<<'.,.,', 'parser.ry', 81)
+  def _reduce_49(val, _values, result)
+     result = val[0] << val[2]
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 82)
-  def _reduce_49(val, _values, result)
-     result = Cel::Number.new(:int, val[0])
-    result
-  end
-.,.,
-
-module_eval(<<'.,.,', 'parser.ry', 83)
   def _reduce_50(val, _values, result)
-     result = Cel::Number.new(:uint, val[0])
+     result = [val[0]]
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 84)
   def _reduce_51(val, _values, result)
-     result = Cel::Number.new(:double, val[0])
+     result = []
     result
   end
 .,.,
 
-module_eval(<<'.,.,', 'parser.ry', 85)
-  def _reduce_52(val, _values, result)
-     result = Cel::Bool.new(val[0])
-    result
-  end
-.,.,
+# reduce 52 omitted
 
 module_eval(<<'.,.,', 'parser.ry', 86)
   def _reduce_53(val, _values, result)
-     result = Cel::Null.new()
-    result
-  end
-.,.,
-
-module_eval(<<'.,.,', 'parser.ry', 87)
-  def _reduce_54(val, _values, result)
-     result = Cel::String.new(val[0])
+     result = val[0]
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'parser.ry', 88)
+  def _reduce_54(val, _values, result)
+     result = val[0] << Cel::AST::Entry.new(val[2], val[4])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 89)
   def _reduce_55(val, _values, result)
-     result = Cel::Bytes.new(val[0])
+     result = [Cel::AST::Entry.new(val[0], val[2])]
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 91)
+  def _reduce_56(val, _values, result)
+     result = int_literal(val[0])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 92)
+  def _reduce_57(val, _values, result)
+     result = uint_literal(val[0])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 93)
+  def _reduce_58(val, _values, result)
+     result = double_literal(val[0])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 94)
+  def _reduce_59(val, _values, result)
+     result = Cel::AST::Literal.new(:bool, val[0])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 95)
+  def _reduce_60(val, _values, result)
+     result = Cel::AST::Literal.new(:null, nil)
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 96)
+  def _reduce_61(val, _values, result)
+     result = string_literal(val[0])
+    result
+  end
+.,.,
+
+module_eval(<<'.,.,', 'parser.ry', 97)
+  def _reduce_62(val, _values, result)
+     result = bytes_literal(val[0])
     result
   end
 .,.,
@@ -861,108 +976,3 @@ end
 
   end   # class Parser
 end   # module Cel
-
-
-# if $0 == __FILE__
-#   examples = <<EOS
-# 123
-# 12345
-# 1.2
-# 1e2
-# -1.2e2
-# 12u
-# 0xa123
-# ""
-# '""'
-# '''x''x'''
-# "\""
-# "\\"
-# r"\\"
-# b"abc"
-# b"ÿ"
-# b"\303\277"
-# "\303\277"
-# "\377"
-# b"\377"
-# "\xFF"
-# b"\xFF"
-
-# 1 + 2
-# 3 - 2
-# " Some String with \"escapes\""
-# 'another string'
-# a.b.c == 1
-# d > 2
-# a.b.c * 3 == 1 && d > 2
-# a.b.c
-# wiri
-# // a.driving_license = "CA"
-# // 1 = 2
-# // 2 = "a"
-# // a.b.c > "a"
-# EOS
-#   puts 'Parsing...'
-#   parser = Cel::Parser.new
-#   examples.each_line do |line|
-#     puts "line: #{line.inspect}"
-#     puts parser.parse(line)
-#   end
-# end
-
-# The grammar of CEL is defined below, using | for alternatives, [] for optional, {} for repeated, and () for grouping.
-# Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
-# ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;
-# ConditionalAnd = [ConditionalAnd "&&"] Relation ;
-# Relation       = [Relation Relop] Addition ;
-# Relop          = "<" | "<=" | ">=" | ">" | "==" | "!=" | "in" ;
-# Addition       = [Addition ("+" | "-")] Multiplication ;
-# Multiplication = [Multiplication ("*" | "/" | "%")] Unary ;
-# Unary          = Member
-#                | "!" {"!"} Member
-#                | "-" {"-"} Member
-#                ;
-# Member         = Primary
-#                | Member "." IDENT ["(" [ExprList] ")"]
-#                | Member "[" Expr "]"
-#                | Member "{" [FieldInits] "}"
-#                ;
-# Primary        = ["."] IDENT ["(" [ExprList] ")"]
-#                | "(" Expr ")"
-#                | "[" [ExprList] "]"
-#                | "{" [MapInits] "}"
-#                | LITERAL
-#                ;
-# ExprList       = Expr {"," Expr} ;
-# FieldInits     = IDENT ":" Expr {"," IDENT ":" Expr} ;
-# MapInits       = Expr ":" Expr {"," Expr ":" Expr} ;
-
-# IDENT          ::= [_a-zA-Z][_a-zA-Z0-9]* - RESERVED
-# LITERAL        ::= INT_LIT | UINT_LIT | FLOAT_LIT | STRING_LIT | BYTES_LIT
-# | BOOL_LIT | NULL_LIT
-# INT_LIT        ::= -? DIGIT+ | -? 0x HEXDIGIT+
-# UINT_LIT       ::= INT_LIT [uU]
-# FLOAT_LIT      ::= -? DIGIT* . DIGIT+ EXPONENT? | -? DIGIT+ EXPONENT
-# DIGIT          ::= [0-9]
-# HEXDIGIT       ::= [0-9abcdefABCDEF]
-# EXPONENT       ::= [eE] [+-]? DIGIT+
-# STRING_LIT     ::= [rR]? ( "    ~( " | NEWLINE )*  "
-#         | '    ~( ' | NEWLINE )*  '
-#         | """  ~"""*              """
-#         | '''  ~'''*              '''
-#         )
-# BYTES_LIT      ::= [bB] STRING_LIT
-# ESCAPE         ::= \ [bfnrt"'\]
-# | \ x HEXDIGIT HEXDIGIT
-# | \ u HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT
-# | \ U HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT
-# | \ [0-3] [0-7] [0-7]
-# NEWLINE        ::= \r\n | \r | \n
-# BOOL_LIT       ::= "true" | "false"
-# NULL_LIT       ::= "null"
-# RESERVED       ::= BOOL_LIT | NULL_LIT | "in"
-# | "as" | "break" | "const" | "continue" | "else"
-# | "for" | "function" | "if" | "import" | "let"
-# | "loop" | "package" | "namespace" | "return"
-# | "var" | "void" | "while"
-# WHITESPACE     ::= [\t\n\f\r ]+
-# COMMENT        ::= '//' ~NEWLINE* NEWLINE
