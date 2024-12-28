@@ -145,7 +145,7 @@ module Cel
         enum = Google::Protobuf::DescriptorPool.generated_pool.lookup(@name)
         if enum.is_a?(Google::Protobuf::EnumDescriptor)
           # Return the enum value
-          Cel::Number.new(:int, enum.lookup_name(field.to_sym))
+          Cel::Number.new(:int, enum.find { |name, _| name == field.to_sym }[1])
         else
           # Keep chaining in the hopes it's a valid enum eventually
           EnumLookup.new("#{@name}.#{field}")
