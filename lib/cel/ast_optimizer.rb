@@ -55,7 +55,7 @@ module Cel
       new_ast || ast
     end
 
-    def self.modify_tree!(ast, &)
+    def self.modify_tree!(ast, &block)
       # Modify node until it no longer is modified
       modified = false
       while (replacement = yield(ast))
@@ -66,52 +66,52 @@ module Cel
       # Walk children
       case ast
       when AST::Nested
-        expr = modify_tree!(ast.expr, &)
+        expr = modify_tree!(ast.expr, &block)
         ast.expr = expr if expr
       when AST::Select
-        operand = modify_tree!(ast.operand, &)
+        operand = modify_tree!(ast.operand, &block)
         ast.operand = operand if operand
       when AST::Call
         if ast.target
-          target = modify_tree!(ast.target, &)
+          target = modify_tree!(ast.target, &block)
           ast.target = target if target
         end
         ast.args.each_with_index do |arg, i|
-          arg = modify_tree!(arg, &)
+          arg = modify_tree!(arg, &block)
           ast.args[i] = arg if arg
         end
       when AST::CreateList
         ast.elements.each_with_index do |element, i|
-          element = modify_tree!(element, &)
+          element = modify_tree!(element, &block)
           ast.elements[i] = element if element
         end
       when AST::CreateStruct
         ast.entries.each_with_index do |entry, i|
-          entry = modify_tree!(entry, &)
+          entry = modify_tree!(entry, &block)
           ast.entries[i] = entry if entry
         end
       when AST::Entry
         if ast.key.is_a?(AST::Expr)
-          key = modify_tree!(ast.key, &)
+          key = modify_tree!(ast.key, &block)
           ast.key = key if key
         end
 
-        value = modify_tree!(ast.value, &)
+        value = modify_tree!(ast.value, &block)
         ast.value = value if value
       when AST::Comprehension
-        iter_range = modify_tree!(ast.iter_range, &)
+        iter_range = modify_tree!(ast.iter_range, &block)
         ast.iter_range = iter_range if iter_range
 
-        accu_init = modify_tree!(ast.accu_init, &)
+        accu_init = modify_tree!(ast.accu_init, &block)
         ast.accu_init = accu_init if accu_init
 
-        loop_condition = modify_tree!(ast.loop_condition, &)
+        loop_condition = modify_tree!(ast.loop_condition, &block)
         ast.loop_condition = loop_condition if loop_condition
 
-        loop_step = modify_tree!(ast.loop_step, &)
+        loop_step = modify_tree!(ast.loop_step, &block)
         ast.loop_step = loop_step if loop_step
 
-        result = modify_tree!(ast.result, &)
+        result = modify_tree!(ast.result, &block)
         ast.result = result if result
       when AST::Literal, AST::Identifier
         # Do nothing
