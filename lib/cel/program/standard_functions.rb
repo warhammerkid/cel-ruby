@@ -29,6 +29,7 @@ module Cel
             when "-" then method(:unary_negate)
             when "dyn" then method(:dyn)
             when "type" then method(:type)
+            when "@not_strictly_false" then method(:not_strictly_false)
             when *TYPE_CAST then method(call_ast.function)
             end
           elsif call_ast.args.size == 2
@@ -89,6 +90,11 @@ module Cel
 
         def in(element, collection)
           Cel::Bool.new(collection.include?(element))
+        end
+
+        # Internal helper method used for comprehension loop conditions
+        def not_strictly_false(value)
+          value.is_a?(Cel::Bool) ? value : Cel::Bool.new(true)
         end
 
         BINARY_OPERATORS.each do |operator|

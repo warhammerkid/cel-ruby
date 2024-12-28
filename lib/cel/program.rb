@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "cel/program/standard_functions"
+require "cel/program/comprehension"
 
 module Cel
   class Program
@@ -114,7 +115,7 @@ module Cel
     end
 
     def evaluate_comprehension(ast)
-      raise EvaluateError, "comprehensions are not supported: #{ast.inspect}"
+      Comprehension.new(@context, ast).call
     end
   end
 end
