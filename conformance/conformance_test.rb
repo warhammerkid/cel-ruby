@@ -31,11 +31,10 @@ class ConformanceTest < Minitest::Test
           skip "Unknown result not supported" if test.result_matcher == :unknown
           skip "Any unknowns result not supported" if test.result_matcher == :any_unknowns
 
-          raise "Container name resolution not supported" unless test.container == ""
-
           # Set up environment
           declarations = build_declarations(test.type_env)
-          env = Cel::Environment.new(declarations)
+          container = Cel::Container.new(test.container)
+          env = Cel::Environment.new(declarations, container)
 
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
@@ -81,6 +80,12 @@ class ConformanceTest < Minitest::Test
     case type_proto.type_kind
     when :primitive
       PRIMITIVE_TYPE_MAP.fetch(type_proto.primitive)
+    when :list_type
+      Cel::TYPES[:list]
+    when :map_type
+      Cel::TYPES[:map]
+    when :message_type
+      :any
     else
       raise "Cannot convert type: #{type_proto.inspect}"
     end
@@ -104,6 +109,13 @@ class ConformanceTest < Minitest::Test
       Cel::String.new(value_proto.string_value)
     when :bytes_value
       Cel::Bytes.new(value_proto.bytes_value.bytes)
+    when :object_value
+      Cel::Types::Message.new(value_proto.object_value)
+    when :list_value
+      Cel::List.new(value_proto.list_value.values.map { |v| convert_conformance_value(v) })
+    when :map_value
+      entries = value_proto.map_value.entries.to_a
+      Cel::Map.new(entries.to_h { |e| [convert_conformance_value(e.key), convert_conformance_value(e.value)] })
     else
       raise "Cannot convert: #{value_proto.inspect}"
     end
@@ -135,6 +147,8 @@ class ConformanceTest < Minitest::Test
     when Cel::List
       list_values = value.value.map { |v| convert_to_conformance_value(v) }
       Cel::Expr::Value.new(list_value: { values: list_values })
+    when Cel::Types::Message
+      Cel::Expr::Value.new(object_value: Google::Protobuf::Any.pack(value.message))
     when Cel::Type
       Cel::Expr::Value.new(type_value: value.to_s)
     else

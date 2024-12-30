@@ -2,10 +2,11 @@
 
 module Cel
   class Environment
-    attr_reader :declarations
+    attr_reader :container, :declarations
 
-    def initialize(declarations = nil)
+    def initialize(declarations = nil, container = nil)
       @declarations = declarations
+      @container = container || DEFAULT_CONTAINER
       @parser = Parser.new
     end
 
@@ -47,7 +48,7 @@ module Cel
 
     def evaluate(bindings = nil)
       context = Context.new(@environment.declarations, bindings)
-      Program.new(context).evaluate(@ast)
+      Program.new(context, @environment.container).evaluate(@ast)
     end
   end
 end
