@@ -16,6 +16,11 @@ class ConformanceTest < Minitest::Test
     BYTES: :bytes,
   }.freeze
 
+  # Override runnable_methods to force them to run in the order they are defined
+  def self.runnable_methods
+    methods_matching(/^test_/)
+  end
+
   # Dyamically define test methods for all conformance tests
   Dir[File.expand_path("testdata/*.json", __dir__)].each do |path| # rubocop:disable Metrics/BlockLength
     json = File.binread(path)
