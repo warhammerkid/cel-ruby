@@ -35,27 +35,25 @@ require "cel"
 env = Cel::Environment.new(name: :string, group: :string)
 
 # 1.1 parse
-begin
-  ast = env.compile('name.startsWith("/groups/" + group)') #=> Cel::Types[:bool], which is == :bool
-rescue Cel::Error => e
-  STDERR.puts("type-check error: #{e.message}")
-  raise e
-end
+ast = env.parse('name.startsWith("/groups/" + group)') #=> Cel::AST::Expr
 # 1.2 check
-prg = env.program(ast)
+env.check(ast)
 # 1.3 evaluate
+prg = env.program(ast)
 return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
     group: Cel::String.new("acme.co"))
 
 # 2.1 parse and check
-prg = env.program('name.startsWith("/groups/" + group)')
+ast = env.compile('name.startsWith("/groups/" + group)')
 # 2.2 then evaluate
+prg = env.program(ast)
 return_value = prg.evaluate(name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
     group: Cel::String.new("acme.co"))
 
 # 3. or parse, check and evaluate
 begin
-  return_value = env.evaluate(ast,
+  return_value = env.evaluate(
+    'name.startsWith("/groups/" + group)',
     name: Cel::String.new("/groups/acme.co/documents/secret-stuff"),
     group: Cel::String.new("acme.co")
   )

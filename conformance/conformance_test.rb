@@ -33,19 +33,24 @@ class ConformanceTest < Minitest::Test
 
           raise "Container name resolution not supported" unless test.container == ""
 
+          # Set up environment
+          declarations = build_declarations(test.type_env)
+          env = Cel::Environment.new(declarations)
+
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
 
+          # Check
+          env.check(ast) unless test.disable_check
+
           # Set up program bindings
-          declarations = build_declarations(test.type_env)
           bindings = test.bindings.to_a.to_h do |name, binding|
             [name.to_sym, convert_conformance_value(binding.value)]
           end
-          context = Cel::Context.new(declarations, bindings)
 
           # Run program
           begin
-            return_value = Cel::Program.new(context).evaluate(ast)
+            return_value = env.evaluate(ast, bindings)
             assert(test.result_matcher != :eval_error, "Evaluation should have failed: #{test.eval_error}")
 
             expr_value = convert_to_conformance_value(return_value)
