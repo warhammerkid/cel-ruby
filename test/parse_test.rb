@@ -98,9 +98,9 @@ class CelParseTest < Minitest::Test
   def test_bytes_parsing
     assert_equal ast { b([97, 98, 99]) }, parse(%(b"abc"))
     assert_equal ast { b([195, 191]) }, parse(%(b"ÿ"))
-    assert_equal ast { b([195, 191]) }, parse(%(b"\303\277"))
-    assert_equal ast { b([255]) }, parse(%(b"\377").b)
-    assert_equal ast { b([255]) }, parse(%(b"\xFF").b)
+    assert_equal ast { b([195, 191]) }, parse(%q(b"\303\277"))
+    assert_equal ast { b([255]) }, parse(%q(b"\377"))
+    assert_equal ast { b([255]) }, parse(%q(b"\xFF"))
   end
 
   def test_other_literals
