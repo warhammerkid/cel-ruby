@@ -93,12 +93,9 @@ class CelParseTest < Minitest::Test
     [
       [%(b"abc"), [97, 98, 99]], # Byte sequence of 97, 98, 99
       [%(b"ÿ"), [195, 191]], # Sequence of bytes 195 and 191 (UTF-8 of ÿ)
-      [%(b"\303\277"), [195, 191]], # Also sequence of bytes 195 and 191
-      # [%Q{"\303\277"}, "Ã¿"], # String of "Ã¿" (code points 195, 191)
-      # [%Q{"\377"}, "ÿ"], # String of "ÿ" (code point 255)
-      [%(b"\377"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
-      # [%Q{"\xFF"}, "ÿ"], # String of "ÿ" (code point 255)
-      [%(b"\xFF"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
+      [%q(b"\303\277"), [195, 191]], # Also sequence of bytes 195 and 191
+      [%q(b"\377"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
+      [%q(b"\xFF"), [255]], # Sequence of byte 255 (not UTF-8 of ÿ)
     ]
   end
 end

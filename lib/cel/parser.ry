@@ -261,7 +261,7 @@ def convert_to_string(raw, str)
     case match[1]
     when "0", "1", "2", "3"
       # Octal sequence - ESC_OCT_SEQ
-      match[2..].to_i(8).chr
+      match[1..].to_i(8).chr
     when "x", "X"
       # Hex sequence - ESC_BYTE_SEQ
       match[2..].to_i(16).chr
