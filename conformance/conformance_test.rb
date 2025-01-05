@@ -37,7 +37,7 @@ class ConformanceTest < Minitest::Test
           skip "Any unknowns result not supported" if test.result_matcher == :any_unknowns
 
           # Set up environment
-          declarations = build_declarations(test.type_env)
+          declarations = nil
           container = Cel::Container.new(test.container)
           env = Cel::Environment.new(declarations, container)
 
@@ -68,33 +68,6 @@ class ConformanceTest < Minitest::Test
   end
 
   private
-
-  # Converts Cel::Expr::Decl protos into a declarations hash
-  #
-  def build_declarations(test_declarations)
-    test_declarations.to_h do |decl|
-      raise "Cannot declare function: #{decl.inspect}" unless decl.decl_kind == :ident
-
-      [decl.name.to_sym, convert_conformance_type(decl.ident.type)]
-    end
-  end
-
-  # Converts Cel::Expr::Type proto into Cel::Type
-  #
-  def convert_conformance_type(type_proto)
-    case type_proto.type_kind
-    when :primitive
-      PRIMITIVE_TYPE_MAP.fetch(type_proto.primitive)
-    when :list_type
-      Cel::TYPES[:list]
-    when :map_type
-      Cel::TYPES[:map]
-    when :message_type
-      :any
-    else
-      raise "Cannot convert type: #{type_proto.inspect}"
-    end
-  end
 
   # Converts Cel::Expr::Value to internal Ruby Cel value
   #
