@@ -5,8 +5,9 @@ require "cel/program/comprehension"
 
 module Cel
   class Program
-    def initialize(context)
+    def initialize(context, container)
       @context = context
+      @container = container
     end
 
     def evaluate(ast)
@@ -57,19 +58,19 @@ module Cel
       operand = evaluate(ast.operand)
       if ast.test_only
         case operand
-        when Cel::Message
-          raise NoSuchFieldError.new(operand, ast.field) unless operand.field?(ast.field)
-
-          Cel::Bool.new(!operand.public_send(ast.field).nil?)
         when Cel::Map
           Cel::Bool.new(operand.respond_to?(ast.field))
+        when Cel::Types::Message
+          operand.field_set?(ast.field)
         else
           raise EvaluateError, "select is not supported on: #{operand}"
         end
       else
         case operand
-        when Cel::Message, Cel::Map
+        when Cel::Map
           operand.public_send(ast.field)
+        when Cel::Types::Message
+          operand[ast.field]
         when Protobuf::EnumLookup
           operand.select(ast.field)
         else
@@ -107,15 +108,25 @@ module Cel
       if ast.message_name == ""
         hash = ast.entries.to_h { |entry| [evaluate(entry.key), evaluate(entry.value)] }
         Cel::Map.new(hash)
+      elsif !defined?(Cel::Types::Message)
+        warn "DEPRECATED: Use of named structs without protobufs is deprecated"
+        hash = ast.entries.to_h { |entry| [Cel::String.new(entry.key), evaluate(entry.value)] }
+        Cel::Map.new(hash)
       else
-        hash = ast.entries.to_h { |entry| [Cel::Identifier.new(entry.key), evaluate(entry.value)] }
-        hash = nil if hash.empty? # Hack to get around bugs in protobuf wrapper type code
-        Cel::Message.new(Cel::Identifier.new(ast.message_name), hash)
+        # Look up descriptor in the protobuf pool
+        pool = Google::Protobuf::DescriptorPool.generated_pool
+        qualified_names = @container.resolve(ast.message_name)
+        qualified_name = qualified_names.find { |name| pool.lookup(name) }
+        raise EvaluateError, "unknown type: #{ast.message_name}" unless qualified_name
+
+        # Build the protobuf message
+        hash = ast.entries.to_h { |entry| [entry.key, evaluate(entry.value)] }
+        Cel::Types::Message.from_cel_fields(pool.lookup(qualified_name), hash)
       end
     end
 
     def evaluate_comprehension(ast)
-      Comprehension.new(@context, ast).call
+      Comprehension.new(@context, @container, ast).call
     end
   end
 end

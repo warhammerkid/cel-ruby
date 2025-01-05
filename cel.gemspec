@@ -24,13 +24,14 @@ Gem::Specification.new do |spec|
     "homepage_uri" => "https://gitlab.com/os85/cel-ruby",
     "rubygems_mfa_required" => "true",
   }
-  spec.required_ruby_version = ">= 2.6"
+  spec.required_ruby_version = ">= 2.7"
 
   spec.files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md", "lib/**/*.rb", "sig/**/*.rbs"]
   spec.extra_rdoc_files = Dir["LICENSE.txt", "CHANGELOG.md", "README.md"]
 
   spec.require_paths = ["lib"]
 
+  spec.add_dependency "base64"
   spec.add_dependency "bigdecimal"
 
   spec.add_development_dependency "minitest"

@@ -64,12 +64,6 @@ truffleruby:
   script:
     - bundle exec rake test
   allow_failure: true
-ruby26:
-  before_script:
-   - bundle install
-  image: "ruby:2.6"
-  script:
-    - bundle exec rake test
 ruby27:
   before_script:
     - bundle install

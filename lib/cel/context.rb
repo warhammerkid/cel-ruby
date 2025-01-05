@@ -26,9 +26,7 @@ module Cel
       end
 
       # If protobufs are enabled, check protobuf environment for an enum
-      if Cel::Protobuf.respond_to?(:lookup_enum) && identifier.id == "google"
-        return Cel::Protobuf.lookup_enum(identifier)
-      end
+      return Cel::Protobuf.lookup_enum(identifier) if defined?(Cel::Protobuf) && identifier.id == "google"
 
       raise EvaluateError, "no value in context for #{identifier}"
     end

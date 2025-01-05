@@ -15,6 +15,7 @@ AllCops:
     - cel.gemspec
   Exclude:
     - 'lib/cel/parser.rb'
+    - 'test/*_pb.rb'
     - '.bundle/**/*'
     - 'vendor/**/*'
 

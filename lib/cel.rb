@@ -6,9 +6,11 @@ require "cel/errors"
 require "cel/ast/types"
 require "cel/ast/elements"
 require "cel/parser"
+require "cel/container"
 require "cel/context"
 require "cel/program"
 require "cel/environment"
+require "cel/protobuf"
 
 module Cel
   def self.to_numeric(anything)

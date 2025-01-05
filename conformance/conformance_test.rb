@@ -16,6 +16,11 @@ class ConformanceTest < Minitest::Test
     BYTES: :bytes,
   }.freeze
 
+  # Override runnable_methods to force them to run in the order they are defined
+  def self.runnable_methods
+    methods_matching(/^test_/)
+  end
+
   # Dyamically define test methods for all conformance tests
   Dir[File.expand_path("testdata/*.json", __dir__)].each do |path| # rubocop:disable Metrics/BlockLength
     json = File.binread(path)
@@ -31,21 +36,25 @@ class ConformanceTest < Minitest::Test
           skip "Unknown result not supported" if test.result_matcher == :unknown
           skip "Any unknowns result not supported" if test.result_matcher == :any_unknowns
 
-          raise "Container name resolution not supported" unless test.container == ""
+          # Set up environment
+          declarations = nil
+          container = Cel::Container.new(test.container)
+          env = Cel::Environment.new(declarations, container)
 
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
 
+          # Check
+          env.check(ast) unless test.disable_check
+
           # Set up program bindings
-          declarations = build_declarations(test.type_env)
           bindings = test.bindings.to_a.to_h do |name, binding|
             [name.to_sym, convert_conformance_value(binding.value)]
           end
-          context = Cel::Context.new(declarations, bindings)
 
           # Run program
           begin
-            return_value = Cel::Program.new(context).evaluate(ast)
+            return_value = env.evaluate(ast, bindings)
             assert(test.result_matcher != :eval_error, "Evaluation should have failed: #{test.eval_error}")
 
             expr_value = convert_to_conformance_value(return_value)
@@ -59,27 +68,6 @@ class ConformanceTest < Minitest::Test
   end
 
   private
-
-  # Converts Cel::Expr::Decl protos into a declarations hash
-  #
-  def build_declarations(test_declarations)
-    test_declarations.to_h do |decl|
-      raise "Cannot declare function: #{decl.inspect}" unless decl.decl_kind == :ident
-
-      [decl.name.to_sym, convert_conformance_type(decl.ident.type)]
-    end
-  end
-
-  # Converts Cel::Expr::Type proto into Cel::Type
-  #
-  def convert_conformance_type(type_proto)
-    case type_proto.type_kind
-    when :primitive
-      PRIMITIVE_TYPE_MAP.fetch(type_proto.primitive)
-    else
-      raise "Cannot convert type: #{type_proto.inspect}"
-    end
-  end
 
   # Converts Cel::Expr::Value to internal Ruby Cel value
   #
@@ -99,6 +87,13 @@ class ConformanceTest < Minitest::Test
       Cel::String.new(value_proto.string_value)
     when :bytes_value
       Cel::Bytes.new(value_proto.bytes_value.bytes)
+    when :object_value
+      Cel::Types::Message.new(value_proto.object_value)
+    when :list_value
+      Cel::List.new(value_proto.list_value.values.map { |v| convert_conformance_value(v) })
+    when :map_value
+      entries = value_proto.map_value.entries.to_a
+      Cel::Map.new(entries.to_h { |e| [convert_conformance_value(e.key), convert_conformance_value(e.value)] })
     else
       raise "Cannot convert: #{value_proto.inspect}"
     end
@@ -130,6 +125,8 @@ class ConformanceTest < Minitest::Test
     when Cel::List
       list_values = value.value.map { |v| convert_to_conformance_value(v) }
       Cel::Expr::Value.new(list_value: { values: list_values })
+    when Cel::Types::Message
+      Cel::Expr::Value.new(object_value: Google::Protobuf::Any.pack(value.message))
     when Cel::Type
       Cel::Expr::Value.new(type_value: value.to_s)
     else

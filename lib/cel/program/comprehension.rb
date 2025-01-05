@@ -3,8 +3,8 @@
 module Cel
   class Program
     class Comprehension < Program
-      def initialize(context, comprehension)
-        super(context)
+      def initialize(context, container, comprehension)
+        super(context, container)
         @comprehension = comprehension
         @accumulator = nil
         @iter_var = nil

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "test_helper"
+require_relative "test_pb"
 
 class CelEvaluateTest < Minitest::Test
   def test_literal_expression
@@ -87,7 +88,6 @@ class CelEvaluateTest < Minitest::Test
     assert_equal(-123, environment.evaluate("google.protobuf.Int32Value{value: -123}"))
     assert_equal(-123, environment.evaluate("google.protobuf.Int64Value{value: -123}"))
     assert_equal 0, environment.evaluate("google.protobuf.Int32Value{}")
-    assert_nil environment.evaluate("google.protobuf.NullValue{}").value
     assert_equal "foo", environment.evaluate("google.protobuf.StringValue{value: 'foo'}")
     assert_equal "", environment.evaluate("google.protobuf.StringValue{}")
     assert_equal 123, environment.evaluate("google.protobuf.UInt32Value{value: 123u}")
@@ -111,6 +111,21 @@ class CelEvaluateTest < Minitest::Test
       "type_url: 'type.googleapis.com/google.protobuf.Value', " \
       "value: b'\x11\x00\x00\x00\x00\x00\x00(@'}"
     )
+  end
+
+  def test_user_proto
+    # Has macro
+    assert_equal true, environment.evaluate("has(cel.ruby.test.TestStruct{a: 1}.a)").value
+    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(cel.ruby.test.TestStruct{}.c)") }
+
+    # Container override
+    container = Cel::Container.new("cel.ruby.test")
+    assert_equal 2, environment(nil, container).evaluate("TestStruct{b: 2}.b").value
+
+    # Binding protos
+    decs = { s: :any }
+    binds = { s: Cel::Ruby::Test::TestStruct.new(a: 3, b: 2) }
+    assert_equal true, environment(decs, container).evaluate("s == TestStruct{a: 3, b: 2}", binds).value
   end
 
   def test_var_expression
@@ -138,8 +153,6 @@ class CelEvaluateTest < Minitest::Test
   end
 
   def test_macros_has
-    assert_equal true, environment.evaluate("has(Struc{a: 1, b: 2}.a)").value
-    assert_raises(Cel::NoSuchFieldError) { environment.evaluate("has(Struc{fields: {'a': 1, 'b': 2}}.c)") }
     assert_equal true, environment.evaluate("has({'a': 1, 'b': 2}.a)").value
     assert_equal false, environment.evaluate("has({'a': 1, 'b': 2}.c)").value
 
