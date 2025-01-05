@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "cel/program/standard_functions"
+require "cel/program/comprehension"
+
 module Cel
   class Program
     def initialize(context)
@@ -8,20 +11,15 @@ module Cel
 
     def evaluate(ast)
       case ast
-      when Group
-        evaluate(ast.value)
-      when Invoke
-        evaluate_invoke(ast)
-      when Operation
-        evaluate_operation(ast)
-      when Message
-        ast.struct
-      when Literal
-        evaluate_literal(ast)
-      when Identifier
-        evaluate_identifier(ast)
-      when Condition
-        evaluate_condition(ast)
+      when AST::Literal then evaluate_literal(ast)
+      when AST::Identifier then evaluate_identifier(ast)
+      when AST::Select then evaluate_select(ast)
+      when AST::Call then evaluate_call(ast)
+      when AST::CreateList then evaluate_create_list(ast)
+      when AST::CreateStruct then evaluate_create_struct(ast)
+      when AST::Comprehension then evaluate_comprehension(ast)
+      else
+        raise "Unexpected AST node"
       end
     end
 
@@ -29,135 +27,95 @@ module Cel
 
     private
 
-    def evaluate_identifier(identifier)
-      if Cel::PRIMITIVE_TYPES.include?(identifier.to_sym)
-        TYPES[identifier.to_sym]
+    def evaluate_literal(ast)
+      case ast.type
+      when :int, :uint, :double
+        Cel::Number.new(ast.type, ast.value)
+      when :bool
+        Cel::Bool.new(ast.value)
+      when :string
+        Cel::String.new(ast.value)
+      when :bytes
+        Cel::Bytes.new(ast.value)
+      when :null
+        Cel::Null.new
       else
-        @context.lookup(identifier)
+        raise "Unexpected literal type: #{ast.inspect}"
       end
     end
 
-    def evaluate_literal(val)
-      case val
-      when List
-        List.new(val.value.map(&method(:call)))
+    def evaluate_identifier(ast)
+      if Cel::PRIMITIVE_TYPES.include?(ast.name.to_sym)
+        type_sym = ast.name.to_sym
+        Cel::TYPES.fetch(type_sym) { Type.new(type_sym) } # Fallback for collection types
       else
-        val
+        @context.lookup(Cel::Identifier.new(ast.name))
       end
     end
 
-    def evaluate_operation(operation)
-      op = operation.op
+    def evaluate_select(ast)
+      operand = evaluate(ast.operand)
+      if ast.test_only
+        case operand
+        when Cel::Message
+          raise NoSuchFieldError.new(operand, ast.field) unless operand.field?(ast.field)
 
-      values = operation.operands.map do |operand|
-        ev_operand = call(operand)
-
-        # return ev_operand if op == "||" && ev_operand == true
-
-        ev_operand
-      end
-
-      if operation.unary? &&
-         op != "!" # https://bugs.ruby-lang.org/issues/18246
-        # unary operations
-        Literal.to_cel_type(values.first.__send__(:"#{op}@"))
-      elsif op == "&&"
-        Bool.new(values.all? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
-      elsif op == "||"
-        Bool.new(values.any? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
-      elsif op == "in"
-        element, collection = values
-        Bool.new(collection.include?(element))
+          Cel::Bool.new(!operand.public_send(ast.field).nil?)
+        when Cel::Map
+          Cel::Bool.new(operand.respond_to?(ast.field))
+        else
+          raise EvaluateError, "select is not supported on: #{operand}"
+        end
       else
-        op_value, *values = values
-        val = op_value.public_send(op, *values)
-
-        Literal.to_cel_type(val)
+        case operand
+        when Cel::Message, Cel::Map
+          operand.public_send(ast.field)
+        when Protobuf::EnumLookup
+          operand.select(ast.field)
+        else
+          raise EvaluateError, "select is not supported on: #{operand}"
+        end
       end
     end
 
-    def evaluate_invoke(invoke, var = invoke.var)
-      func = invoke.func
-      args = invoke.args
-
-      return evaluate_standard_func(invoke) unless var
-
-      var = case var
-            when Identifier
-              evaluate_identifier(var)
-            when Invoke
-              evaluate_invoke(var)
-            else
-              var
-      end
-
-      case var
-      when String
-        raise EvaluateError, "#{invoke} is not supported" unless String.method_defined?(func, false)
-
-        var.public_send(func, *args.map(&method(:call)))
-      when Message
-        # If e evaluates to a message and f is not declared in this message, the
-        # runtime error no_such_field is raised.
-        raise NoSuchFieldError.new(var, func) unless var.field?(func)
-
-        var.public_send(func)
-      when Map, List
-        return Macro.__send__(func, var, *args, context: @context) if Macro.respond_to?(func)
-
-        # If e evaluates to a map, then e.f is equivalent to e['f'] (where f is
-        # still being used as a meta-variable, e.g. the expression x.foo is equivalent
-        # to the expression x['foo'] when x evaluates to a map).
-
-        args ?
-        var.public_send(func, *args) :
-        var.public_send(func)
-      when Timestamp, Duration
-        raise EvaluateError, "#{invoke} is not supported" unless var.class.method_defined?(func, false)
-
-        var.public_send(func, *args)
+    def evaluate_call(ast)
+      args = ast.args.map { |arg| evaluate(arg) }
+      target = evaluate(ast.target) if ast.target
+      if (func = StandardFunctions.lookup_function(ast))
+        args.unshift(target) if ast.target
+        func.call(*args)
+      elsif ast.function == "&&"
+        Cel::Bool.new(args.all? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
+      elsif ast.function == "||"
+        Cel::Bool.new(args.any? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
+      elsif @context.declarations && @context.declarations.key?(ast.function.to_sym)
+        function = @context.declarations[ast.function.to_sym]
+        function.call(*args.map(&:to_ruby_type))
+      elsif target
+        val = target.public_send(ast.function, *args)
+        Cel::Literal.to_cel_type(val)
       else
-        raise EvaluateError, "#{invoke} is not supported"
+        raise EvaluateError, "unhandled call: #{ast.inspect}"
       end
     end
 
-    def evaluate_condition(condition)
-      call(condition.if).value ? call(condition.then) : call(condition.else)
+    def evaluate_create_list(ast)
+      Cel::List.new(ast.elements.map { |e| evaluate(e) })
     end
 
-    def evaluate_standard_func(funcall)
-      func = funcall.func
-      args = funcall.args
-
-      case func
-      when :type
-        val = call(args.first)
-        return val.type if val.respond_to?(:type)
-
-        val.class
-      # MACROS
-      when :has
-        Macro.__send__(func, *args)
-      when :size
-        Cel::Number.new(:int, Macro.__send__(func, *args))
-      when :matches
-        Macro.__send__(func, *args.map(&method(:call)))
-      when :int, :uint, :string, :double, :bytes, :duration, :timestamp
-        type = TYPES[func]
-        type.cast(call(args.first))
-      when :dyn
-        call(args.first)
+    def evaluate_create_struct(ast)
+      if ast.message_name == ""
+        hash = ast.entries.to_h { |entry| [evaluate(entry.key), evaluate(entry.value)] }
+        Cel::Map.new(hash)
       else
-        return evaluate_custom_func(@context.declarations[func], funcall) if @context.declarations.key?(func)
-
-        raise EvaluateError, "#{funcall} is not supported"
+        hash = ast.entries.to_h { |entry| [Cel::Identifier.new(entry.key), evaluate(entry.value)] }
+        hash = nil if hash.empty? # Hack to get around bugs in protobuf wrapper type code
+        Cel::Message.new(Cel::Identifier.new(ast.message_name), hash)
       end
     end
 
-    def evaluate_custom_func(func, funcall)
-      args = funcall.args
-
-      func.call(*args.map(&method(:call)).map(&:to_ruby_type))
+    def evaluate_comprehension(ast)
+      Comprehension.new(@context, ast).call
     end
   end
 end

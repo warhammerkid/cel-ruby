@@ -15,87 +15,100 @@ rule
   eof: tEOF
 
 
-  expr: conditional_or "?" conditional_or ":" expr { result = Cel::Condition.new(val[0], val[2], val[4]) }
+  expr: conditional_or "?" conditional_or ":" expr { result = global_call(CONDITIONAL_OPERATOR, val[0], val[2], val[4]) }
       | conditional_or
 
-  conditional_or: conditional_or tOROP conditional_and { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+  conditional_or: conditional_or tOROP conditional_and { result = global_call(val[1], val[0], val[2]) }
                 | conditional_and
 
-  conditional_and: conditional_and tANDOP relation { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+  conditional_and: conditional_and tANDOP relation { result = global_call(val[1], val[0], val[2]) }
                  | relation
 
-  relation: relation tRELOP addition { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+  relation: relation tRELOP addition { result = global_call(val[1], val[0], val[2]) }
           | addition
 
-  addition: addition tADDOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
-          | addition tSUBOP multiplication { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+  addition: addition tADDOP multiplication { result = global_call(val[1], val[0], val[2]) }
+          | addition tSUBOP multiplication { result = global_call(val[1], val[0], val[2]) }
           | multiplication
 
-  multiplication: multiplication tMULTIOP unary { result = Cel::Operation.new(val[1], [val[0], val[2]]) }
+  multiplication: multiplication tMULTIOP unary { result = global_call(val[1], val[0], val[2]) }
                 | unary
 
 
   unary: member
-       | "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
-       | tSUBOP negative_member { result = Cel::Operation.new("-", [val[1]]) }
+       | "!" negated_member { result = global_call("!", val[1]) }
+       | tSUBOP negative_member { result = global_call("-", val[1]) }
 
-  negated_member: "!" negated_member { result = Cel::Operation.new("!", [val[1]]) }
+  negated_member: "!" negated_member { result = global_call("!", val[1]) }
                 | member
 
-  negative_member: tSUBOP negative_member { result = Cel::Operation.new("-", [val[1]]) }
+  negative_member: tSUBOP negative_member { result = global_call("-", val[1]) }
                 | member
 
   member: primary
-        | member "." tIDENTIFIER { result = Cel::Invoke.new(var: val[0], func: val[2]) }
-        | member "." tIDENTIFIER '(' maybe_expr_list ')' { result = Cel::Invoke.new(var: val[0], func: val[2], args: [val[4]].flatten(1)) }
-        | member '[' expr ']' { result = Cel::Invoke.new(var: val[0], func: "[]", args: val[2]) }
-        | member '{' maybe_field_inits '}' { result = Cel::Message.new(val[0], val[2]) }
+        | member "." tIDENTIFIER { result = Cel::AST::Select.new(val[0], val[2]) }
+        | member "." tIDENTIFIER "(" maybe_expr_list ")" { result = receiver_call(val[0], val[2], *val[4]) }
+        | member "[" expr "]" { result = global_call(INDEX_OPERATOR, val[0], val[2]) }
+        | member "{" maybe_field_inits "}" { result = create_message(val[0], val[2]) }
 
 
-  primary:  identifier { result = Cel::Identifier.new(validated_id!(val[0])) }
-         |  identifier '(' maybe_expr_list ')' { result = Cel::Invoke.new(func: validated_id!(val[0]), args: [val[2]].flatten(1)) }
-         | '(' expr ')' { result = Cel::Group.new(val[1]) }
-         | '[' maybe_expr_list ']' { result = Cel::List.new(Array(val[1])) }
-         | '{' maybe_map_inits '}' { result = Cel::Map.new(Hash[val[1]]) }
+  primary:  identifier { result = Cel::AST::Identifier.new(validated_id!(val[0])) }
+         |  identifier "(" maybe_expr_list ")" { result = global_call(validated_id!(val[0]), *val[2]) }
+         | "(" expr ")" { result = Cel::AST::Nested.new(val[1]) }
+         | "[" maybe_list_inits "]" { result = Cel::AST::CreateList.new(val[1]) }
+         | "{" maybe_map_inits "}" { result = Cel::AST::CreateStruct.new("", val[1]) }
          | literal
 
   identifier: tIDENTIFIER
-            | '.' tIDENTIFIER
+            | "." tIDENTIFIER { result = val[0] + val[1] }
 
-  maybe_expr_list: expr_list
-                 | { result = [] }
+  maybe_expr_list: { result = [] }
+                 | expr_list
 
-  maybe_map_inits: { result = {} }
-                 | map_inits
+  expr_list: expr_list "," expr { result = val[0] << val[2] }
+           | expr { result = [val[0]] }
 
-  expr_list: expr_list ',' expr { result = Array(val[0]) << val[2] }
-           | expr { [val[0]] }
-
-  maybe_field_inits: { result = nil }
+  maybe_field_inits: { result = [] }
                    | field_inits
+                   | field_inits "," { result = val[0] }
 
-  field_inits: field_inits ',' tIDENTIFIER ":" expr { result = val[0].merge(Cel::Identifier.new(val[2]) => val[4]) }
-             | tIDENTIFIER ":" expr { result = { Cel::Identifier.new(val[0]) => val[2] } }
+  field_inits: field_inits "," tIDENTIFIER ":" expr { result = val[0] << Cel::AST::Entry.new(val[2], val[4]) }
+             | tIDENTIFIER ":" expr { result = [Cel::AST::Entry.new(val[0], val[2])] }
 
-  map_inits: map_inits ',' expr ':' expr { val[0][val[2]] = val[4]; result = val[0] }
-           | expr ':' expr { result = { val[0] => val[2] } }
+  maybe_list_inits: { result = [] }
+                  | list_inits
+                  | list_inits "," { result = val[0] }
 
-  literal: tINT { result = Cel::Number.new(:int, val[0]) }
-         | tUINT { result = Cel::Number.new(:uint, val[0]) }
-         | tDOUBLE { result = Cel::Number.new(:double, val[0]) }
-         | tBOOL { result = Cel::Bool.new(val[0]) }
-         | tNULL { result = Cel::Null.new() }
-         | tSTRING { result = Cel::String.new(val[0]) }
-         | tBYTES { result = Cel::Bytes.new(val[0]) }
+  list_inits: list_inits "," expr { result = val[0] << val[2] }
+            | expr { result = [val[0]] }
+
+  maybe_map_inits: { result = [] }
+                 | map_inits
+                 | map_inits "," { result = val[0] }
+
+  map_inits: map_inits "," expr ":" expr { result = val[0] << Cel::AST::Entry.new(val[2], val[4]) }
+           | expr ":" expr { result = [Cel::AST::Entry.new(val[0], val[2])] }
+
+  literal: tINT { result = int_literal(val[0]) }
+         | tUINT { result = uint_literal(val[0]) }
+         | tDOUBLE { result = double_literal(val[0]) }
+         | tBOOL { result = Cel::AST::Literal.new(:bool, val[0]) }
+         | tNULL { result = Cel::AST::Literal.new(:null, nil) }
+         | tSTRING { result = string_literal(val[0]) }
+         | tBYTES { result = bytes_literal(val[0]) }
 
 end
 ---- header
-require 'strscan'
-require 'bigdecimal'
-require 'cel/ast/elements'
+require "strscan"
+require "cel/ast"
+require "cel/ast_optimizer"
+require "cel/macro"
 ---- inner
 
-
+CONDITIONAL_OPERATOR = "?:"
+INDEX_OPERATOR = "[]"
+LOGICAL_OPERATORS = %w[<= >= < > == != in].freeze
+MULTI_OPERATORS = %w[* / %].freeze
 
 OPERATORS = if RUBY_VERSION < "2.7.0"
   {
@@ -103,12 +116,12 @@ OPERATORS = if RUBY_VERSION < "2.7.0"
     "||" => :tOROP,
     "+" => :tADDOP,
     "-" => :tSUBOP,
-  }.merge(Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
-   .merge(Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
+  }.merge(Hash[LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }])
+   .merge(Hash[MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }])
 else
   {
-    **Hash[Cel::LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
-    **Hash[Cel::MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
+    **Hash[LOGICAL_OPERATORS.map{|op| [op, :tRELOP] }],
+    **Hash[MULTI_OPERATORS.map{|op| [op, :tMULTIOP] }],
     "&&" => :tANDOP,
     "||" => :tOROP,
     "+" => :tADDOP,
@@ -140,13 +153,13 @@ NUM_FLOAT_REGEX = Regexp.union(
 )
 
 NUM_INT_REGEX = Regexp.union(
-  /0x(?<hex>#{HEXDIGIT}+)/,
-  /(?<dec>#{DIGIT}+)/
+  /0x#{HEXDIGIT}+/,
+  /#{DIGIT}+/
 )
 
 NUM_UINT_REGEX = Regexp.union(
-  /0x(?<hex>#{HEXDIGIT}+)[uU]/,
-  /(?<dec>#{DIGIT}+)[uU]/
+  /0x#{HEXDIGIT}+[uU]/,
+  /#{DIGIT}+[uU]/
 )
 
 STRING_REGEX = Regexp.union(
@@ -171,9 +184,13 @@ var void while
 
 IDENTIFIER_REGEX = /[_a-zA-Z][_a-zA-Z0-9]*/
 
+def initialize(enable_macros: true)
+  @enable_macros = enable_macros
+end
+
 def parse(str)
   tokenize(str)
-  do_parse
+  AstOptimizer.optimize!(do_parse)
 rescue Racc::ParseError => err
   raise parse_error(err)
 end
@@ -198,16 +215,15 @@ def tokenize(str)
     when scanner.scan(COMMENT_REGEX)
       # skip comment lines
     when scanner.scan(NUM_FLOAT_REGEX)
-      @q << [:tDOUBLE, Float(scanner.matched)]
+      @q << [:tDOUBLE, scanner.matched]
     when scanner.scan(NUM_UINT_REGEX)
-      @q << [:tUINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
+      @q << [:tUINT, scanner.matched]
     when scanner.scan(NUM_INT_REGEX)
-      @q << [:tINT, scanner[:hex] ? scanner[:hex].to_i(16) : scanner[:dec].to_i]
+      @q << [:tINT, scanner.matched]
     when scanner.scan(STRING_REGEX)
-      @q << [:tSTRING, convert_to_string(scanner[:raw], scanner[:str])]
+      @q << [:tSTRING, { raw: scanner[:raw], str: scanner[:str] }]
     when scanner.scan(BYTES_REGEX)
-      str = convert_to_string(scanner[:raw], scanner[:str])
-      @q << [:tBYTES, convert_to_bytes(str)]
+      @q << [:tBYTES, { raw: scanner[:raw], str: scanner[:str] }]
     when scanner.scan(IDENTIFIER_REGEX)
       word = scanner.matched
       if word == "null"
@@ -235,6 +251,60 @@ end
 
 def next_token
   @q.shift
+end
+
+def int_literal(str)
+  base = 10
+  if str.start_with?("0x")
+    base = 16
+    str = str[2..]
+  end
+  Cel::AST::Literal.new(:int, str.to_i(base))
+end
+
+def uint_literal(str)
+  base = 10
+  if str.start_with?("0x")
+    base = 16
+    str = str[2..]
+  end
+  Cel::AST::Literal.new(:uint, str.to_i(base))
+end
+
+def double_literal(str)
+  Cel::AST::Literal.new(:double, Float(str))
+end
+
+def string_literal(parts)
+  Cel::AST::Literal.new(:string, convert_to_string(parts[:raw], parts[:str]))
+end
+
+def bytes_literal(parts)
+  string = convert_to_string(parts[:raw], parts[:str])
+  Cel::AST::Literal.new(:bytes, string.unpack("C*"))
+end
+
+def global_call(function, *args)
+  node = Cel::Macro.rewrite_global(function, args) if @enable_macros
+  node || Cel::AST::Call.new(nil, function, args)
+end
+
+def receiver_call(target, function, *args)
+  node = Cel::Macro.rewrite_receiver(target, function, args) if @enable_macros
+  node || Cel::AST::Call.new(target, function, args)
+end
+
+def create_message(message_name, entries)
+  # The message name will be either an Identifer or chain of Select nodes. We
+  # want to convert this to a single string.
+  parts = []
+  while message_name.is_a?(Cel::AST::Select)
+    parts.unshift(message_name.field)
+    message_name = message_name.operand
+  end
+  parts.unshift(message_name.name)
+
+  Cel::AST::CreateStruct.new(parts.join("."), entries)
 end
 
 CHAR_SEQ_MAP = {
@@ -275,10 +345,6 @@ def convert_to_string(raw, str)
   end
 end
 
-def convert_to_bytes(str)
-  str.unpack("C*")
-end
-
 # Checks whether the given identifier token is a reserved word or not. Throws
 # a ParseError if it's a reserved word.
 def validated_id!(identifier)
@@ -286,109 +352,3 @@ def validated_id!(identifier)
 
   raise Cel::ParseError.new("invalid usage of the reserved word \"#{identifier}\"")
 end
-
----- footer
-
-# if $0 == __FILE__
-#   examples = <<EOS
-# 123
-# 12345
-# 1.2
-# 1e2
-# -1.2e2
-# 12u
-# 0xa123
-# ""
-# '""'
-# '''x''x'''
-# "\""
-# "\\"
-# r"\\"
-# b"abc"
-# b"ÿ"
-# b"\303\277"
-# "\303\277"
-# "\377"
-# b"\377"
-# "\xFF"
-# b"\xFF"
-
-# 1 + 2
-# 3 - 2
-# " Some String with \"escapes\""
-# 'another string'
-# a.b.c == 1
-# d > 2
-# a.b.c * 3 == 1 && d > 2
-# a.b.c
-# wiri
-# // a.driving_license = "CA"
-# // 1 = 2
-# // 2 = "a"
-# // a.b.c > "a"
-# EOS
-#   puts 'Parsing...'
-#   parser = Cel::Parser.new
-#   examples.each_line do |line|
-#     puts "line: #{line.inspect}"
-#     puts parser.parse(line)
-#   end
-# end
-
-# The grammar of CEL is defined below, using | for alternatives, [] for optional, {} for repeated, and () for grouping.
-# Expr           = ConditionalOr ["?" ConditionalOr ":" Expr] ;
-# ConditionalOr  = [ConditionalOr "||"] ConditionalAnd ;
-# ConditionalAnd = [ConditionalAnd "&&"] Relation ;
-# Relation       = [Relation Relop] Addition ;
-# Relop          = "<" | "<=" | ">=" | ">" | "==" | "!=" | "in" ;
-# Addition       = [Addition ("+" | "-")] Multiplication ;
-# Multiplication = [Multiplication ("*" | "/" | "%")] Unary ;
-# Unary          = Member
-#                | "!" {"!"} Member
-#                | "-" {"-"} Member
-#                ;
-# Member         = Primary
-#                | Member "." IDENT ["(" [ExprList] ")"]
-#                | Member "[" Expr "]"
-#                | Member "{" [FieldInits] "}"
-#                ;
-# Primary        = ["."] IDENT ["(" [ExprList] ")"]
-#                | "(" Expr ")"
-#                | "[" [ExprList] "]"
-#                | "{" [MapInits] "}"
-#                | LITERAL
-#                ;
-# ExprList       = Expr {"," Expr} ;
-# FieldInits     = IDENT ":" Expr {"," IDENT ":" Expr} ;
-# MapInits       = Expr ":" Expr {"," Expr ":" Expr} ;
-
-# IDENT          ::= [_a-zA-Z][_a-zA-Z0-9]* - RESERVED
-# LITERAL        ::= INT_LIT | UINT_LIT | FLOAT_LIT | STRING_LIT | BYTES_LIT
-# | BOOL_LIT | NULL_LIT
-# INT_LIT        ::= -? DIGIT+ | -? 0x HEXDIGIT+
-# UINT_LIT       ::= INT_LIT [uU]
-# FLOAT_LIT      ::= -? DIGIT* . DIGIT+ EXPONENT? | -? DIGIT+ EXPONENT
-# DIGIT          ::= [0-9]
-# HEXDIGIT       ::= [0-9abcdefABCDEF]
-# EXPONENT       ::= [eE] [+-]? DIGIT+
-# STRING_LIT     ::= [rR]? ( "    ~( " | NEWLINE )*  "
-#         | '    ~( ' | NEWLINE )*  '
-#         | """  ~"""*              """
-#         | '''  ~'''*              '''
-#         )
-# BYTES_LIT      ::= [bB] STRING_LIT
-# ESCAPE         ::= \ [bfnrt"'\]
-# | \ x HEXDIGIT HEXDIGIT
-# | \ u HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT
-# | \ U HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT
-# | \ [0-3] [0-7] [0-7]
-# NEWLINE        ::= \r\n | \r | \n
-# BOOL_LIT       ::= "true" | "false"
-# NULL_LIT       ::= "null"
-# RESERVED       ::= BOOL_LIT | NULL_LIT | "in"
-# | "as" | "break" | "const" | "continue" | "else"
-# | "for" | "function" | "if" | "import" | "let"
-# | "loop" | "package" | "namespace" | "return"
-# | "var" | "void" | "while"
-# WHITESPACE     ::= [\t\n\f\r ]+
-# COMMENT        ::= '//' ~NEWLINE* NEWLINE

@@ -76,7 +76,6 @@ module Cel
       when "DoubleValue", "google.protobuf.DoubleValue",
            "FloatValue", "google.protobuf.FloatValue"
         value = value.nil? ? Number.new(:double, 0.0) : value[Identifier.new("value")]
-        value.type = TYPES[:double]
       when "Int32Value", "google.protobuf.Int32Value",
            "Int64Value", "google.protobuf.Int64Value"
         value = value.nil? ? Number.new(:int, 0) : value[Identifier.new("value")]
@@ -127,6 +126,30 @@ module Cel
         end
 
         Literal.to_cel_type(value)
+      end
+    end
+
+    # TODO: This probably needs to be completely re-worked
+    def lookup_enum(identifier)
+      EnumLookup.new(identifier.id)
+    end
+
+    # Magical object that eventually returns the enum value if enough selects
+    # are chained to it
+    class EnumLookup
+      def initialize(name)
+        @name = name
+      end
+
+      def select(field)
+        enum = Google::Protobuf::DescriptorPool.generated_pool.lookup(@name)
+        if enum.is_a?(Google::Protobuf::EnumDescriptor)
+          # Return the enum value
+          Cel::Number.new(:int, enum.find { |name, _| name == field.to_sym }[1])
+        else
+          # Keep chaining in the hopes it's a valid enum eventually
+          EnumLookup.new("#{@name}.#{field}")
+        end
       end
     end
   end

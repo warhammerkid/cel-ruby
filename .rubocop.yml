@@ -98,3 +98,11 @@ Performance/MethodObjectAsBlock:
 
 Style/HashSyntax:
   Enabled: false
+
+# Only available on Ruby 3.1, but we're supporting 2.6
+Naming/BlockForwarding:
+  Enabled: false
+
+# Only available on Ruby 3.1, but we're supporting 2.6
+Style/ArgumentsForwarding:
+  Enabled: false

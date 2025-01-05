@@ -2,77 +2,156 @@
 
 module Cel
   module Macro
-    module_function
+    ACCUMULATOR_NAME = "__result__"
 
-    # If e evaluates to a protocol buffers version 2 message and f is a defined field:
-    #     If f is a repeated field or map field, has(e.f) indicates whether the field is non-empty.
-    #     If f is a singular or oneof field, has(e.f) indicates whether the field is set.
-    # If e evaluates to a protocol buffers version 3 message and f is a defined field:
-    #     If f is a repeated field or map field, has(e.f) indicates whether the field is non-empty.
-    #     If f is a oneof or singular message field, has(e.f) indicates whether the field is set.
-    #     If f is some other singular field, has(e.f) indicates whether the field's value is its default
-    #       value (zero for numeric fields, false for booleans, empty for strings and bytes).
-    def has(invoke)
-      var = invoke.var
-      func = invoke.func
+    def self.rewrite_global(function, args)
+      case function
+      when "has" then rewrite_has(args)
+      end
+    end
 
-      case var
-      when Message
-        # If e evaluates to a message and f is not a declared field for the message,
-        # has(e.f) raises a no_such_field error.
-        raise NoSuchFieldError.new(var, func) unless var.field?(func)
+    def self.rewrite_receiver(target, function, args)
+      case function
+      when "all" then rewrite_all(target, args)
+      when "exists" then rewrite_exists(target, args)
+      when "exists_one", "existsOne" then rewrite_exists_one(target, args)
+      when "map" then rewrite_map(target, args)
+      when "filter" then rewrite_filter(target, args)
+      end
+    end
 
-        Bool.new(!var.public_send(func).nil?)
-      when Map
-        # If e evaluates to a map, then has(e.f) indicates whether the string f
-        # is a key in the map (note that f must syntactically be an identifier).
-        Bool.new(var.respond_to?(func))
+    def self.rewrite_has(args)
+      unless args.size == 1 && args[0].is_a?(Cel::AST::Select)
+        raise Cel::ParseError, "has() macro expects select argument"
+      end
+
+      args[0].tap { |s| s.test_only = true }
+    end
+
+    # Expands the expression into a comprehension that returns true if all of
+    # the elements in the range match the predicate expression:
+    #
+    #   <iterRange>.all(<iterVar>, <predicate>)
+    def self.rewrite_all(target, args)
+      check_iter_var!("all()", args)
+
+      AST::Comprehension.new(
+        iter_var: args[0].name,
+        iter_range: target,
+        accu_var: ACCUMULATOR_NAME,
+        accu_init: AST::Literal.new(:bool, true),
+        loop_condition: AST::Call.new(nil, "@not_strictly_false", [accu_ident]),
+        loop_step: AST::Call.new(nil, "&&", [accu_ident, args[1]]),
+        result: accu_ident
+      )
+    end
+
+    # Expands the expression into a comprehension that returns true if any of
+    # the elements in the range match the predicate expression:
+    #
+    #   <iterRange>.exists(<iterVar>, <predicate>)
+    def self.rewrite_exists(target, args)
+      check_iter_var!("exists()", args)
+
+      AST::Comprehension.new(
+        iter_var: args[0].name,
+        iter_range: target,
+        accu_var: ACCUMULATOR_NAME,
+        accu_init: AST::Literal.new(:bool, false),
+        loop_condition: AST::Literal.new(:bool, true),
+        loop_step: AST::Call.new(nil, "||", [accu_ident, args[1]]),
+        result: accu_ident
+      )
+    end
+
+    # Expands the expression into a comprehension that returns true if exactly
+    # one of the elements in the range match the predicate expression:
+    #
+    #   <iterRange>.existsOne(<iterVar>, <predicate>)
+    def self.rewrite_exists_one(target, args)
+      check_iter_var!("existsOne()", args)
+
+      AST::Comprehension.new(
+        iter_var: args[0].name,
+        iter_range: target,
+        accu_var: ACCUMULATOR_NAME,
+        accu_init: AST::Literal.new(:int, 0),
+        loop_condition: AST::Literal.new(:bool, true),
+        loop_step: AST::Call.new(
+          nil, "?:",
+          [
+            args[1],
+            AST::Call.new(nil, "+", [accu_ident, AST::Literal.new(:int, 1)]),
+            accu_ident,
+          ]
+        ),
+        result: AST::Call.new(nil, "==", [accu_ident, AST::Literal.new(:int, 1)])
+      )
+    end
+
+    # Expands the expression into a comprehension that transforms each element
+    # in the input to produce an output list.
+    #
+    # There are two call patterns supported by map:
+    #
+    #   <iterRange>.map(<iterVar>, <transform>)
+    #   <iterRange>.map(<iterVar>, <predicate>, <transform>)
+    #
+    # In the second form only iterVar values which return true when provided to
+    # the predicate expression are transformed.
+    def self.rewrite_map(target, args)
+      check_iter_var!("map()", args)
+
+      if args.size == 3
+        filter = args[1]
+        fn = args[2]
       else
-        # In all other cases, has(e.f) evaluates to an error.
-        raise EvaluateError, "#{invoke} is not supported"
+        filter = nil
+        fn = args[1]
       end
+
+      step = AST::Call.new(nil, "+", [accu_ident, AST::CreateList.new([fn])])
+      step = AST::Call.new(nil, "?:", [filter, step, accu_ident]) if filter
+
+      AST::Comprehension.new(
+        iter_var: args[0].name,
+        iter_range: target,
+        accu_var: ACCUMULATOR_NAME,
+        accu_init: AST::CreateList.new([]),
+        loop_condition: AST::Literal.new(:bool, true),
+        loop_step: step,
+        result: accu_ident
+      )
     end
 
-    def size(literal)
-      literal.size
+    # Expands the expression into a comprehension which produces a list which
+    # contains only elements which match the provided predicate expression:
+    #
+    #   <iterRange>.filter(<iterVar>, <predicate>)
+    def self.rewrite_filter(target, args)
+      check_iter_var!("filter()", args)
+
+      step = AST::Call.new(nil, "+", [accu_ident, AST::CreateList.new([args[0]])])
+      step = AST::Call.new(nil, "?:", [args[1], step, accu_ident])
+
+      AST::Comprehension.new(
+        iter_var: args[0].name,
+        iter_range: target,
+        accu_var: ACCUMULATOR_NAME,
+        accu_init: AST::CreateList.new([]),
+        loop_condition: AST::Literal.new(:bool, true),
+        loop_step: step,
+        result: accu_ident
+      )
     end
 
-    def matches(string, pattern)
-      pattern = Regexp.new(pattern)
-      Bool.new(pattern.match?(string))
+    def self.accu_ident
+      AST::Identifier.new(ACCUMULATOR_NAME)
     end
 
-    def all(collection, identifier, predicate, context:)
-      return_value = collection.all? do |element, *|
-        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
-      end
-      Bool.new(return_value)
-    end
-
-    def exists(collection, identifier, predicate, context:)
-      return_value = collection.any? do |element, *|
-        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
-      end
-      Bool.new(return_value)
-    end
-
-    def exists_one(collection, identifier, predicate, context:)
-      return_value = collection.one? do |element, *|
-        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
-      end
-      Bool.new(return_value)
-    end
-
-    def filter(collection, identifier, predicate, context:)
-      collection.select do |element, *|
-        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate).value
-      end
-    end
-
-    def map(collection, identifier, predicate, context:)
-      collection.map do |element, *|
-        Program.new(context.merge(identifier.to_sym => element)).evaluate(predicate)
-      end
+    def self.check_iter_var!(macro, args)
+      raise ParseError, "#{macro} macro expects identifier as first argument" unless args[0].is_a?(AST::Identifier)
+      raise ParseError, "#{args[0].name} is not a valid iteration var name" if args[0].name == ACCUMULATOR_NAME
     end
   end
 end
