@@ -9,6 +9,8 @@ module Cel
   module Types
     # Wrapper type for protobuf messages
     class Message
+      extend FunctionBindings
+
       attr_reader :message
 
       # Automatically unwrap protobuf well known types
@@ -84,6 +86,7 @@ module Cel
         Cel::Bool.new(!is_default)
       end
 
+      cel_func { global_function("[]", %i[message string], :any) }
       def [](key)
         fd = @message.class.descriptor.lookup(key)
         raise NoSuchFieldError.new(self, key) unless fd
