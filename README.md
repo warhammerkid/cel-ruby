@@ -107,7 +107,7 @@ env2.evaluate("foo(2, 2)") #=> 4
 
 ## Supported Rubies
 
-All Rubies greater or equal to 2.5, and always latest JRuby and Truffleruby.
+All Rubies greater or equal to 2.7, and always latest JRuby and Truffleruby.
 
 ## Development
 
