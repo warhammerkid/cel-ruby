@@ -233,6 +233,33 @@ class CelEvaluateTest < Minitest::Test
                                              end).evaluate("intersect([1,2], [2])"))
   end
 
+  def test_extend_functions
+    my_module = Module.new do
+      extend Cel::FunctionBindings
+
+      cel_func { global_function("foo", %i[int int], :int) }
+      def self.foo(a, b)
+        Cel::Number.new(:int, a.value + b.value)
+      end
+    end
+    my_singleton_module = Module.new do
+      class << self
+        extend Cel::FunctionBindings
+
+        cel_func { global_function("foo_too", %i[int int], :int) }
+        def foo(a, b)
+          Cel::Number.new(:int, a.value + b.value)
+        end
+      end
+    end
+    env = Cel::Environment.new
+    env.extend_functions(my_module)
+    env.extend_functions(my_singleton_module)
+
+    assert_equal(4, env.evaluate("foo(2, 2)"))
+    assert_equal(4, env.evaluate("foo_too(2, 2)"))
+  end
+
   def test_bindings
     assert_nil environment.evaluate("a", { a: nil }).value
     assert_equal true, environment.evaluate("a", { a: true }).value

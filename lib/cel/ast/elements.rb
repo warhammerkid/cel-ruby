@@ -4,9 +4,6 @@ require "time"
 require "delegate"
 
 module Cel
-  LOGICAL_OPERATORS = %w[<= >= < > == != in].freeze
-  MULTI_OPERATORS = %w[* / %].freeze
-
   class Identifier < SimpleDelegator
     attr_reader :id
 
@@ -78,7 +75,7 @@ module Cel
     end
 
     def call(*args)
-      Literal.to_cel_type(@func.call(*args))
+      Literal.to_cel_type(@func.call(*args.map(&:to_ruby_type)))
     end
   end
 
@@ -140,36 +137,85 @@ module Cel
   end
 
   class Number < Literal
-    [:+, :-, *MULTI_OPERATORS].each do |op|
+    extend FunctionBindings
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:double] then Number.new(:double, @value.to_f)
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:uint]
+        raise EvaluateError, "Out of range" if @value.negative?
+
+        Number.new(:uint, @value.to_i)
+      when TYPES[:string] then String.new(@value.to_s)
+      when TYPES[:timestamp] then Timestamp.new(@value)
+      else raise EvaluateError, "Could not cast number to #{type}"
+      end
+    end
+
+    %w[+ - * /].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
+        cel_func do
+          global_function("#{op}", %i[double double], :double)
+          global_function("#{op}", %i[int int], :int)
+          global_function("#{op}", %i[uint uint], :uint)
+        end
         def #{op}(other)
           Number.new(@type, super)
         end
       OUT
     end
 
-    (LOGICAL_OPERATORS - %w[==]).each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          Bool.new(super)
-        end
-      OUT
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(Number)
+
+      @value <=> other.value
+    end
+
+    cel_func do
+      global_function("-", %i[double], :double)
+      global_function("-", %i[int], :int)
+    end
+    def unary_negate
+      Number.new(@type, -@value)
+    end
+
+    cel_func do
+      global_function("%", %i[int int], :int)
+      global_function("%", %i[uint uint], :uint)
+    end
+    def remainder(other)
+      Number.new(@type, @value.remainder(other.value))
     end
   end
 
   class Bool < Literal
+    extend FunctionBindings
+
     def initialize(value)
       super(:bool, value)
     end
 
-    (LOGICAL_OPERATORS - %w[==]).each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          Bool.new(super(other.value))
-        end
-      OUT
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(Bool)
+
+      return 0 if @value == other.value
+
+      !@value && other.value ? -1 : 1
     end
 
+    def cast_to_type(type)
+      case type
+      when TYPES[:string] then String.new(@value ? "true" : "false")
+      else raise EvaluateError, "Could not cast bool to #{type}"
+      end
+    end
+
+    cel_func { global_function("!", %i[bool], :bool) }
     def !
       Bool.new(super)
     end
@@ -182,34 +228,90 @@ module Cel
   end
 
   class String < Literal
+    TRUE_VALUE = %w[1 t T TRUE true True].freeze
+    FALSE_VALUE = %w[0 f F FALSE false False].freeze
+
+    extend FunctionBindings
+
     def initialize(value)
       super(:string, value)
     end
 
-    # CEL string functions
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(String)
 
+      @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:bool]
+        if TRUE_VALUE.include?(@value)
+          Bool.new(true)
+        elsif FALSE_VALUE.include?(@value)
+          Bool.new(false)
+        else
+          raise EvaluateError, "Could not convert #{@value} to bool"
+        end
+      when TYPES[:bytes]
+        Bytes.new(@value.bytes)
+      when TYPES[:double]
+        Number.new(:double, @value == "NaN" ? Float::NAN : @value.to_f)
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:uint]
+        int = @value.to_i
+        raise EvaluateError, "Out of range" if int.negative?
+
+        Number.new(:uint, int)
+      when TYPES[:duration] then Duration.new(@value)
+      when TYPES[:timestamp] then Timestamp.new(@value)
+      else raise EvaluateError, "Could not cast string to #{type}"
+      end
+    end
+
+    cel_func do
+      global_function("size", %i[string], :int)
+      receiver_function("size", :string, [], :int)
+    end
+    def size
+      Number.new(:int, @value.size)
+    end
+
+    cel_func { receiver_function("contains", :string, %i[string], :bool) }
     def contains(string)
       Bool.new(@value.include?(string))
     end
 
+    cel_func { receiver_function("endsWith", :string, %i[string], :bool) }
     def endsWith(string)
       Bool.new(@value.end_with?(string))
     end
 
+    cel_func { receiver_function("startsWith", :string, %i[string], :bool) }
     def startsWith(string)
       Bool.new(@value.start_with?(string))
     end
 
-    %i[+ -].each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          String.new(super)
-        end
-      OUT
+    cel_func { global_function("+", %i[string string], :string) }
+    def +(other)
+      String.new(@value + other.value)
+    end
+
+    cel_func do
+      global_function("matches", %i[string string], :bool)
+      receiver_function("matches", :string, %i[string], :bool)
+    end
+    def string_matches(pattern)
+      pattern = Regexp.new(pattern)
+      Bool.new(pattern.match?(@value))
     end
   end
 
   class Bytes < Literal
+    extend FunctionBindings
+
     def initialize(value)
       super(:bytes, value)
     end
@@ -218,24 +320,42 @@ module Cel
       [self]
     end
 
-    (LOGICAL_OPERATORS - %w[==]).each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          Bool.new(super)
-        end
-      OUT
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(Bytes)
+
+      @value <=> other.value
     end
 
-    %i[+ -].each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          String.new(@type, super)
-        end
-      OUT
+    def cast_to_type(type)
+      case type
+      when TYPES[:string]
+        str = @value.pack("C*").force_encoding("UTF-8")
+        raise EvaluateError, "Invalid UTF-8" unless str.valid_encoding?
+
+        String.new(str)
+      else raise EvaluateError, "Could not cast bytes to #{type}"
+      end
+    end
+
+    cel_func { global_function("+", %i[bytes bytes], :bytes) }
+    def +(other)
+      Bytes.new(@value + other.value)
+    end
+
+    cel_func do
+      global_function("size", %i[bytes], :int)
+      receiver_function("size", :bytes, [], :int)
+    end
+    def size
+      Number.new(:int, @value.size)
     end
   end
 
   class List < Literal
+    extend FunctionBindings
+
     def initialize(value)
       value = value.map do |v|
         Literal.to_cel_type(v)
@@ -251,14 +371,32 @@ module Cel
       value.map(&:to_ruby_type)
     end
 
+    cel_func { global_function("+", %i[list list], :list) }
     def +(other)
       raise EvaluateError, "Cannot append non-list" unless other.is_a?(List)
 
       List.new(@value + other.value)
     end
+
+    cel_func { global_function("[]", %i[list int], :any) }
+    def [](index)
+      raise EvaluateError, "Index out of bounds" if index.value.negative?
+
+      @value.fetch(index.value)
+    end
+
+    cel_func do
+      global_function("size", %i[list], :int)
+      receiver_function("size", :list, [], :int)
+    end
+    def size
+      Number.new(:int, @value.size)
+    end
   end
 
   class Map < Literal
+    extend FunctionBindings
+
     def initialize(value)
       value = value.to_h do |k, v|
         [Literal.to_cel_type(k), Literal.to_cel_type(v)]
@@ -276,6 +414,19 @@ module Cel
 
     def to_ary
       [self]
+    end
+
+    cel_func { global_function("[]", %i[map any], :any) }
+    def [](index)
+      @value.fetch(index)
+    end
+
+    cel_func do
+      global_function("size", %i[map], :int)
+      receiver_function("size", :map, [], :int)
+    end
+    def size
+      Number.new(:int, @value.size)
     end
 
     def to_ruby_type
@@ -308,6 +459,8 @@ module Cel
   end
 
   class Timestamp < Literal
+    extend FunctionBindings
+
     def initialize(value)
       value = case value
               when ::String then Time.parse(value)
@@ -317,10 +470,40 @@ module Cel
       super(:timestamp, value)
     end
 
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      # TODO: Remove this once the tests don't try to directly compare times
+      # to wrapped Cel::Timestamp values
+      return @value <=> other if other.is_a?(Time)
+
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(Timestamp)
+
+      @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:string]
+        if @value.nsec.zero?
+          String.new(@value.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        else
+          String.new(@value.strftime("%Y-%m-%dT%H:%M:%S.%9NZ"))
+        end
+      else raise EvaluateError, "Could not cast timestamp to #{type}"
+      end
+    end
+
+    cel_func { global_function("+", %i[timestamp duration], :timestamp) }
     def +(other)
       Timestamp.new(@value + other.to_f)
     end
 
+    cel_func do
+      global_function("-", %i[timestamp timestamp], :duration)
+      global_function("-", %i[timestamp duration], :timestamp)
+    end
     def -(other)
       case other
       when Timestamp
@@ -330,54 +513,86 @@ module Cel
       end
     end
 
-    LOGICAL_OPERATORS.each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          other.is_a?(Cel::Literal) ? Bool.new(super) : super
-        end
-      OUT
-    end
-
     # Cel Functions
 
+    cel_func do
+      receiver_function("getDate", :timestamp, [], :int)
+      receiver_function("getDate", :timestamp, %i[string], :int)
+    end
     def getDate(tz = nil)
-      to_local_time(tz).day
+      Number.new(:int, to_local_time(tz).day)
     end
 
+    cel_func do
+      receiver_function("getDayOfMonth", :timestamp, [], :int)
+      receiver_function("getDayOfMonth", :timestamp, %i[string], :int)
+    end
     def getDayOfMonth(tz = nil)
       getDate(tz) - 1
     end
 
+    cel_func do
+      receiver_function("getDayOfWeek", :timestamp, [], :int)
+      receiver_function("getDayOfWeek", :timestamp, %i[string], :int)
+    end
     def getDayOfWeek(tz = nil)
-      to_local_time(tz).wday
+      Number.new(:int, to_local_time(tz).wday)
     end
 
+    cel_func do
+      receiver_function("getDayOfYear", :timestamp, [], :int)
+      receiver_function("getDayOfYear", :timestamp, %i[string], :int)
+    end
     def getDayOfYear(tz = nil)
-      to_local_time(tz).yday - 1
+      Number.new(:int, to_local_time(tz).yday - 1)
     end
 
+    cel_func do
+      receiver_function("getMonth", :timestamp, [], :int)
+      receiver_function("getMonth", :timestamp, %i[string], :int)
+    end
     def getMonth(tz = nil)
-      to_local_time(tz).month - 1
+      Number.new(:int, to_local_time(tz).month - 1)
     end
 
+    cel_func do
+      receiver_function("getFullYear", :timestamp, [], :int)
+      receiver_function("getFullYear", :timestamp, %i[string], :int)
+    end
     def getFullYear(tz = nil)
-      to_local_time(tz).year
+      Number.new(:int, to_local_time(tz).year)
     end
 
+    cel_func do
+      receiver_function("getHours", :timestamp, [], :int)
+      receiver_function("getHours", :timestamp, %i[string], :int)
+    end
     def getHours(tz = nil)
-      to_local_time(tz).hour
+      Number.new(:int, to_local_time(tz).hour)
     end
 
+    cel_func do
+      receiver_function("getMinutes", :timestamp, [], :int)
+      receiver_function("getMinutes", :timestamp, %i[string], :int)
+    end
     def getMinutes(tz = nil)
-      to_local_time(tz).min
+      Number.new(:int, to_local_time(tz).min)
     end
 
+    cel_func do
+      receiver_function("getSeconds", :timestamp, [], :int)
+      receiver_function("getSeconds", :timestamp, %i[string], :int)
+    end
     def getSeconds(tz = nil)
-      to_local_time(tz).sec
+      Number.new(:int, to_local_time(tz).sec)
     end
 
+    cel_func do
+      receiver_function("getMilliseconds", :timestamp, [], :int)
+      receiver_function("getMilliseconds", :timestamp, %i[string], :int)
+    end
     def getMilliseconds(tz = nil)
-      to_local_time(tz).nsec / 1_000_000
+      Number.new(:int, to_local_time(tz).nsec / 1_000_000)
     end
 
     private
@@ -385,6 +600,7 @@ module Cel
     def to_local_time(tz = nil)
       time = @value
       if tz
+        tz = tz.value # Unwrap Cel::String
         tz = TZInfo::Timezone.get(tz) unless tz.match?(/\A[+-]\d{2,}:\d{2,}\z/)
         time = time.getlocal(tz)
       end
@@ -393,6 +609,8 @@ module Cel
   end
 
   class Duration < Literal
+    extend FunctionBindings
+
     def initialize(value)
       value = case value
               when ::String
@@ -408,38 +626,64 @@ module Cel
       super(:duration, value)
     end
 
-    LOGICAL_OPERATORS.each do |op|
-      class_eval(<<-OUT, __FILE__, __LINE__ + 1)
-        def #{op}(other)
-          case other
-          when Cel::Literal
-            Bool.new(super)
-          when Numeric
-            @value == other
+    # Comparison method used to implement all other comparison methods. It is
+    # called internally and expected to return a Ruby integer of -1, 0, or 1.
+    def <=>(other)
+      raise EvaluateError, "Unhandled comparison" unless other.is_a?(Duration)
 
-          else
-            super
-          end
-        end
-      OUT
+      @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:string]
+        parts = @value.divmod(1)
+        Cel::String.new(parts.last.zero? ? "#{parts.first}s" : "#{@value}s")
+      else raise EvaluateError, "Could not cast duration to #{type}"
+      end
+    end
+
+    cel_func do
+      global_function("+", %i[duration duration], :duration)
+      global_function("+", %i[duration timestamp], :timestamp)
+    end
+    def +(other)
+      case other
+      when Duration
+        Duration.new(@value + other.value)
+      when Timestamp
+        Timestamp.new(other.value + @value)
+      end
+    end
+
+    cel_func do
+      global_function("-", %i[duration duration], :duration)
+    end
+    def -(other)
+      Duration.new(@value - other.value)
     end
 
     # Cel Functions
 
+    cel_func { receiver_function("getHours", :duration, [], :int) }
     def getHours
-      (getMinutes / 60).to_i
+      getMinutes / 60
     end
 
+    cel_func { receiver_function("getMinutes", :duration, [], :int) }
     def getMinutes
-      (getSeconds / 60).to_i
+      getSeconds / 60
     end
 
+    cel_func { receiver_function("getSeconds", :duration, [], :int) }
     def getSeconds
-      @value.divmod(1).first
+      Number.new(:int, @value.divmod(1).first)
     end
 
+    cel_func { receiver_function("getMilliseconds", :duration, [], :int) }
     def getMilliseconds
-      (@value.divmod(1).last * 1000).round
+      Number.new(:int, (@value.divmod(1).last * 1000).round)
     end
 
     private

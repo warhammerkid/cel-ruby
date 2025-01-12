@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "cel/program/standard_functions"
 require "cel/program/comprehension"
 
 module Cel
@@ -81,20 +80,10 @@ module Cel
 
     def evaluate_call(ast)
       args = ast.args.map { |arg| evaluate(arg) }
-      target = evaluate(ast.target) if ast.target
-      if (func = StandardFunctions.lookup_function(ast))
-        args.unshift(target) if ast.target
-        func.call(*args)
-      elsif ast.function == "&&"
-        Cel::Bool.new(args.all? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
-      elsif ast.function == "||"
-        Cel::Bool.new(args.any? { |x| true == x.value }) # rubocop:disable Style/YodaCondition
-      elsif @context.declarations && @context.declarations.key?(ast.function.to_sym)
-        function = @context.declarations[ast.function.to_sym]
-        function.call(*args.map(&:to_ruby_type))
-      elsif target
-        val = target.public_send(ast.function, *args)
-        Cel::Literal.to_cel_type(val)
+      args.unshift(evaluate(ast.target)) if ast.target
+
+      if (binding = @context.lookup_function(ast, args))
+        binding.call(*args)
       else
         raise EvaluateError, "unhandled call: #{ast.inspect}"
       end

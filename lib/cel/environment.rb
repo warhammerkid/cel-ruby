@@ -2,12 +2,30 @@
 
 module Cel
   class Environment
-    attr_reader :container, :declarations
+    attr_reader :container, :declarations, :function_registry
 
     def initialize(declarations = nil, container = nil)
-      @declarations = declarations
+      @declarations = {}
+      function_declarations = {}
+      declarations&.each do |name, value|
+        if value.is_a?(Cel::Function) || value.is_a?(Proc)
+          function_declarations[name] = value
+        else
+          @declarations[name] = value
+        end
+      end
+
+      @function_registry = FunctionRegistry.new(function_declarations)
+      @function_registry.extend_functions(Cel::StandardFunctions)
+
       @container = container || DEFAULT_CONTAINER
       @parser = Parser.new
+    end
+
+    # Adds CEL functions defined in the given module to the function bindings
+    # for the environment
+    def extend_functions(mod)
+      @function_registry.extend_functions(mod)
     end
 
     # Parses the given expression and returns the AST
@@ -47,7 +65,7 @@ module Cel
     end
 
     def evaluate(bindings = nil)
-      context = Context.new(@environment.declarations, bindings)
+      context = Context.new(@environment.declarations, bindings, @environment.function_registry)
       Program.new(context, @environment.container).evaluate(@ast)
     end
   end

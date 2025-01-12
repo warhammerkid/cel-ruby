@@ -20,7 +20,7 @@ module Cel
 
         first_arg = node.args[0]
         next nil unless first_arg.is_a?(AST::Literal)
-        next nil unless first_arg.type == :int || first_arg.type == :double
+        next nil unless first_arg.type == :int || first_arg.type == :double # rubocop:disable Style/MultipleComparison
 
         AST::Literal.new(first_arg.type, -first_arg.value)
       end
@@ -32,7 +32,7 @@ module Cel
       new_ast = modify_tree!(ast) do |node|
         next nil unless node.is_a?(AST::Call)
         next nil unless node.args.size == 1
-        next nil unless node.function == "-" || node.function == "!"
+        next nil unless node.function == "-" || node.function == "!" # rubocop:disable Style/MultipleComparison
 
         first_arg = node.args[0]
         next nil unless first_arg.is_a?(AST::Call)

@@ -94,7 +94,26 @@ env.evaluate("google.protobuf.Duration{seconds: 123}.seconds == 123") #=> true
 
 ### Custom functions
 
-`cel-ruby` allows you to define custom functions to be used insde CEL expressions. While we **strongly** recommend usage of `Cel::Function` for defining them (due to the ability of them being used for checking), the only requirement is that the function object responds to `.call`:
+`cel-ruby` allows you to define custom functions to be used inside CEL expressions. The recommended way to do this is to create a module with all your custom functions.
+
+```ruby
+module MyCustomFunctions
+  class << self
+    extend Cel::FunctionBindings
+
+    cel_func { global_function("foo", [:int, :int], :int) }
+    def foo(a, b)
+      Cel::Number.new(:int, a.value + b.value)
+    end
+  end
+end
+
+env = Cel::Environment.new
+env.extend_functions(MyCustomFunctions)
+env.evaluate("foo(2, 2)") #=> 4
+```
+
+You can also pass in function declarations alongside variable declarations when creating the environment. While we **strongly** recommend usage of `Cel::Function` for defining them (due to the ability of them being used for checking), the only requirement is that the function object responds to `.call`. Some functionality is not available when defining functions this way:
 
 ```ruby
 env = environment(foo: Cel::Function(:int, :int, return_type: :int) { |a, b|  a + b})

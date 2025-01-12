@@ -17,4 +17,6 @@ if ENV.key?("PARALLEL")
   Minitest::Test.parallelize_me!
 end
 
+require "tzinfo" # Required for timestamp timezone conversion tests
+
 require "cel"
