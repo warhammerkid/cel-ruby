@@ -73,7 +73,7 @@ module Cel
             value.zero?
           elsif fd.type == :bool
             value == false
-          elsif fd.type == :string || fd.type == :bytes
+          elsif fd.type == :string || fd.type == :bytes # rubocop:disable Style/MultipleComparison
             value == ""
           elsif fd.type == :message
             value.nil?
