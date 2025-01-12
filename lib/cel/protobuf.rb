@@ -76,7 +76,7 @@ begin
         when :string
           Cel::String.new(value)
         when :bytes
-          Cel::Bytes.new(value.unpack("C*"))
+          Cel::Bytes.new(value.b)
         when Google::Protobuf::EnumDescriptor
           Cel::Number.new(:int, Cel::Protobuf.enum_lookup_name(type, value))
         when Google::Protobuf::Descriptor
@@ -242,20 +242,17 @@ begin
       BYTES_DESCRIPTOR = Google::Protobuf::BytesValue.descriptor
 
       def cast_to_proto(type)
-        # Google::Protobuf expects byte fields to be simple strings
-        str_value = @value.pack("C*")
-
         case type
         when :bytes
-          str_value
+          @value
         when BYTES_DESCRIPTOR
-          type.msgclass.new(value: str_value)
+          type.msgclass.new(value: @value)
         when Protobuf::ANY_DESCRIPTOR
-          message = Google::Protobuf::BytesValue.new(value: str_value)
+          message = Google::Protobuf::BytesValue.new(value: @value)
           Google::Protobuf::Any.pack(message)
         when Protobuf::VALUE_DESCRIPTOR
           # Canonical encoding of bytes for JSON is to base64 encode them
-          Google::Protobuf::Value.from_ruby(Base64.strict_encode64(str_value))
+          Google::Protobuf::Value.from_ruby(Base64.strict_encode64(@value))
         else
           raise EvaluateError, "Cannot convert #{self} to #{type.inspect}"
         end
