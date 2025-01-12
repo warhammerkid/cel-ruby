@@ -133,14 +133,7 @@ class CelEvaluateTest < Minitest::Test
     assert_equal false, environment.evaluate("a == 2", { a: Cel::Number.new(:int, 1) }).value
     assert_equal [1, 2, 3], environment(a: :list).evaluate("a", { a: [1, 2, 3] })
 
-    assert_equal Time.parse("2022-12-25T00:00:00Z"),
-                 environment(a: :timestamp).evaluate("a", { a: "2022-12-25T00:00:00Z" })
-
-    assert_equal Time.parse("2022-12-25T00:00:00Z"),
-                 environment(a: :timestamp).evaluate("a", { a: Time.parse("2022-12-25T00:00:00Z") })
-
-    assert_equal Time.parse("2022-12-25T00:00:00Z"), environment(a: :timestamp).evaluate("a", { a: 1_671_926_400 })
-    assert_equal Time.parse("2022-12-25T00:00:00Z"), environment(a: :timestamp)
+    assert_equal Cel::Timestamp.new(Time.parse("2022-12-25T00:00:00Z")), environment(a: :timestamp)
       .evaluate("a", { a: Google::Protobuf::Timestamp.new(seconds: 1_671_926_400) })
   end
 

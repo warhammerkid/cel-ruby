@@ -12,9 +12,7 @@ module Cel
       return unless @bindings
 
       @bindings.each do |k, v|
-        val = to_cel_type(v)
-        val = TYPES[@declarations[k]].cast(val) if @declarations && @declarations.key?(k)
-        @bindings[k] = val
+        @bindings[k] = to_cel_type(v)
       end
     end
 
