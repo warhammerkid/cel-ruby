@@ -19,33 +19,6 @@ module Cel
     def type
       TYPES[:type]
     end
-
-    def cast(value)
-      value = value.value if value.is_a?(Literal)
-
-      case @type
-      when :int
-        Number.new(:int, Integer(value))
-      when :uint
-        Number.new(:uint, Integer(value).abs)
-      when :double
-        Number.new(:double, Float(value))
-      when :string
-        String.new(String(value))
-      when :bytes
-        Bytes.new(value.bytes)
-      when :bool
-        Bool.new(value)
-      when :timestamp
-        Timestamp.new(value)
-      when :duration
-        Duration.new(value)
-      when :any
-        value
-      else
-        raise Error, "unsupported cast operation to #{@type}"
-      end
-    end
   end
 
   class ListType < Type
@@ -63,10 +36,6 @@ module Cel
 
     def ==(other)
       other == :list || super
-    end
-
-    def cast(value)
-      List.new(value)
     end
   end
 
@@ -86,10 +55,6 @@ module Cel
 
     def ==(other)
       other == :map || super
-    end
-
-    def cast(value)
-      Map.new(value)
     end
   end
 
