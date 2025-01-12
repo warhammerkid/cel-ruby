@@ -192,7 +192,7 @@ end
 
 def bytes_literal(parts)
   string = convert_to_string(parts[:raw], parts[:str])
-  Cel::AST::Literal.new(:bytes, string.unpack("C*"))
+  Cel::AST::Literal.new(:bytes, string.force_encoding("ASCII-8BIT"))
 end
 
 def global_call(function, *args)

@@ -86,7 +86,7 @@ class ConformanceTest < Minitest::Test
     when :string_value
       Cel::String.new(value_proto.string_value)
     when :bytes_value
-      Cel::Bytes.new(value_proto.bytes_value.bytes)
+      Cel::Bytes.new(value_proto.bytes_value.b)
     when :object_value
       Cel::Types::Message.new(value_proto.object_value)
     when :list_value
@@ -116,7 +116,7 @@ class ConformanceTest < Minitest::Test
     when Cel::String
       Cel::Expr::Value.new(string_value: value.value)
     when Cel::Bytes
-      Cel::Expr::Value.new(bytes_value: value.value.pack("c*"))
+      Cel::Expr::Value.new(bytes_value: value.value.b)
     when Cel::Map
       entries = value.value.map do |k, v|
         { key: convert_to_conformance_value(k), value: convert_to_conformance_value(v) }

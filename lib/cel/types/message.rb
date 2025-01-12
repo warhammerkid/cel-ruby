@@ -132,7 +132,7 @@ module Cel
         when Google::Protobuf::StringValue
           Cel::String.new(message.value)
         when Google::Protobuf::BytesValue
-          Cel::Bytes.new(message.value.unpack("C*"))
+          Cel::Bytes.new(message.value.b)
         when Google::Protobuf::Timestamp
           Cel::Timestamp.new(message.to_time)
         when Google::Protobuf::Duration

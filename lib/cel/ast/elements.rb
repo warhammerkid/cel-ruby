@@ -255,8 +255,7 @@ module Cel
         else
           raise EvaluateError, "Could not convert #{@value} to bool"
         end
-      when TYPES[:bytes]
-        Bytes.new(@value.bytes)
+      when TYPES[:bytes] then Bytes.new(@value.b)
       when TYPES[:double]
         Number.new(:double, @value == "NaN" ? Float::NAN : @value.to_f)
       when TYPES[:int] then Number.new(:int, @value.to_i)
@@ -316,10 +315,6 @@ module Cel
       super(:bytes, value)
     end
 
-    def to_ary
-      [self]
-    end
-
     # Comparison method used to implement all other comparison methods. It is
     # called internally and expected to return a Ruby integer of -1, 0, or 1.
     def <=>(other)
@@ -331,7 +326,7 @@ module Cel
     def cast_to_type(type)
       case type
       when TYPES[:string]
-        str = @value.pack("C*").force_encoding("UTF-8")
+        str = @value.dup.force_encoding("UTF-8")
         raise EvaluateError, "Invalid UTF-8" unless str.valid_encoding?
 
         String.new(str)

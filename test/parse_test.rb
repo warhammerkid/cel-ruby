@@ -22,7 +22,7 @@ module AstShorthand
   end
 
   def self.b(bytes)
-    Cel::AST::Literal.new(:bytes, bytes)
+    Cel::AST::Literal.new(:bytes, bytes.pack("C*"))
   end
 
   def self.struct(name, fields_hash = {})

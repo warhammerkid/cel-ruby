@@ -82,7 +82,7 @@ class CelEvaluateTest < Minitest::Test
 
   def test_dynamic_proto
     assert_equal true, environment.evaluate("google.protobuf.BoolValue{value: true}").value
-    assert_equal "foo".bytes, environment.evaluate("google.protobuf.BytesValue{value: b'foo'}")
+    assert_equal "foo".b, environment.evaluate("google.protobuf.BytesValue{value: b'foo'}")
     assert_equal(-1500.0, environment.evaluate("google.protobuf.DoubleValue{value: -1.5e3}"))
     assert_equal(-1500.0, environment.evaluate("google.protobuf.FloatValue{value: -1.5e3}"))
     assert_equal(-123, environment.evaluate("google.protobuf.Int32Value{value: -123}"))
@@ -181,7 +181,7 @@ class CelEvaluateTest < Minitest::Test
     assert_equal 1, environment.evaluate("uint(1)")
     assert_equal 1.0, environment.evaluate("double(1)")
     assert_equal "1", environment.evaluate("string(1)")
-    assert_equal [97], environment.evaluate("bytes('a')")
+    assert_equal "a".b, environment.evaluate("bytes('a')")
   end
 
   def test_func_matches
