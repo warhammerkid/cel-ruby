@@ -118,12 +118,12 @@ module Cel
 
       cel_func { global_function("bool", %i[string], :bool) }
       def cast_to_bool(a)
-        TYPES[:bool].cast(a)
+        a.cast_to_type(TYPES[:bool])
       end
 
       cel_func { global_function("bytes", %i[string], :bytes) }
       def cast_to_bytes(a)
-        TYPES[:bytes].cast(a)
+        a.cast_to_type(TYPES[:bytes])
       end
 
       cel_func do
@@ -132,7 +132,7 @@ module Cel
         global_function("double", %i[uint], :double)
       end
       def cast_to_double(a)
-        TYPES[:double].cast(a)
+        a.cast_to_type(TYPES[:double])
       end
 
       cel_func do
@@ -140,7 +140,7 @@ module Cel
         global_function("duration", %i[string], :duration)
       end
       def cast_to_duration(a)
-        TYPES[:duration].cast(a)
+        a.cast_to_type(TYPES[:duration])
       end
 
       cel_func do
@@ -151,7 +151,7 @@ module Cel
         global_function("int", %i[uint], :int)
       end
       def cast_to_int(a)
-        TYPES[:int].cast(a)
+        a.cast_to_type(TYPES[:int])
       end
 
       cel_func do
@@ -164,7 +164,7 @@ module Cel
         global_function("string", %i[uint], :string)
       end
       def cast_to_string(a)
-        TYPES[:string].cast(a)
+        a.cast_to_type(TYPES[:string])
       end
 
       cel_func do
@@ -172,7 +172,7 @@ module Cel
         global_function("timestamp", %i[string], :timestamp)
       end
       def cast_to_timestamp(a)
-        TYPES[:timestamp].cast(a)
+        a.cast_to_type(TYPES[:timestamp])
       end
 
       cel_func do
@@ -181,7 +181,7 @@ module Cel
         global_function("uint", %i[string], :uint)
       end
       def cast_to_uint(a)
-        TYPES[:uint].cast(a)
+        a.cast_to_type(TYPES[:uint])
       end
     end
 

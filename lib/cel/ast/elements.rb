@@ -139,6 +139,20 @@ module Cel
   class Number < Literal
     extend FunctionBindings
 
+    def cast_to_type(type)
+      case type
+      when TYPES[:double] then Number.new(:double, @value.to_f)
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:uint]
+        raise EvaluateError, "Out of range" if @value.negative?
+
+        Number.new(:uint, @value.to_i)
+      when TYPES[:string] then String.new(@value.to_s)
+      when TYPES[:timestamp] then Timestamp.new(@value)
+      else raise EvaluateError, "Could not cast number to #{type}"
+      end
+    end
+
     %w[+ - * /].each do |op|
       class_eval(<<-OUT, __FILE__, __LINE__ + 1)
         cel_func do
@@ -194,6 +208,13 @@ module Cel
       !@value && other.value ? -1 : 1
     end
 
+    def cast_to_type(type)
+      case type
+      when TYPES[:string] then String.new(@value ? "true" : "false")
+      else raise EvaluateError, "Could not cast bool to #{type}"
+      end
+    end
+
     cel_func { global_function("!", %i[bool], :bool) }
     def !
       Bool.new(super)
@@ -207,6 +228,9 @@ module Cel
   end
 
   class String < Literal
+    TRUE_VALUE = %w[1 t T TRUE true True].freeze
+    FALSE_VALUE = %w[0 f F FALSE false False].freeze
+
     extend FunctionBindings
 
     def initialize(value)
@@ -219,6 +243,32 @@ module Cel
       raise EvaluateError, "Unhandled comparison" unless other.is_a?(String)
 
       @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:bool]
+        if TRUE_VALUE.include?(@value)
+          Bool.new(true)
+        elsif FALSE_VALUE.include?(@value)
+          Bool.new(false)
+        else
+          raise EvaluateError, "Could not convert #{@value} to bool"
+        end
+      when TYPES[:bytes]
+        Bytes.new(@value.bytes)
+      when TYPES[:double]
+        Number.new(:double, @value == "NaN" ? Float::NAN : @value.to_f)
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:uint]
+        int = @value.to_i
+        raise EvaluateError, "Out of range" if int.negative?
+
+        Number.new(:uint, int)
+      when TYPES[:duration] then Duration.new(@value)
+      when TYPES[:timestamp] then Timestamp.new(@value)
+      else raise EvaluateError, "Could not cast string to #{type}"
+      end
     end
 
     cel_func do
@@ -276,6 +326,17 @@ module Cel
       raise EvaluateError, "Unhandled comparison" unless other.is_a?(Bytes)
 
       @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:string]
+        str = @value.pack("C*").force_encoding("UTF-8")
+        raise EvaluateError, "Invalid UTF-8" unless str.valid_encoding?
+
+        String.new(str)
+      else raise EvaluateError, "Could not cast bytes to #{type}"
+      end
     end
 
     cel_func { global_function("+", %i[bytes bytes], :bytes) }
@@ -419,6 +480,19 @@ module Cel
       raise EvaluateError, "Unhandled comparison" unless other.is_a?(Timestamp)
 
       @value <=> other.value
+    end
+
+    def cast_to_type(type)
+      case type
+      when TYPES[:int] then Number.new(:int, @value.to_i)
+      when TYPES[:string]
+        if @value.nsec.zero?
+          String.new(@value.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        else
+          String.new(@value.strftime("%Y-%m-%dT%H:%M:%S.%9NZ"))
+        end
+      else raise EvaluateError, "Could not cast timestamp to #{type}"
+      end
     end
 
     cel_func { global_function("+", %i[timestamp duration], :timestamp) }
