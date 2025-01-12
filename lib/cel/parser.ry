@@ -276,7 +276,8 @@ def double_literal(str)
 end
 
 def string_literal(parts)
-  Cel::AST::Literal.new(:string, convert_to_string(parts[:raw], parts[:str]))
+  string = convert_to_string(parts[:raw], parts[:str])
+  Cel::AST::Literal.new(:string, string.encode("UTF-8", invalid: :replace, undef: :replace))
 end
 
 def bytes_literal(parts)
