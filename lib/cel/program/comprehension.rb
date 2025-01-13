@@ -16,13 +16,7 @@ module Cel
         iterator_value = evaluate(@comprehension.iter_range)
 
         # Run comprehension
-        enumerator =
-          case iterator_value
-          when Cel::List then iterator_value.each
-          when Cel::Map then iterator_value.each_key
-          else raise EvaluateError, "cannot run comprehension on: #{iterator_value}"
-          end
-        enumerator.each do |value|
+        iterator_value.to_enum.each do |value|
           @iter_var = value
           @accumulator = evaluate(@comprehension.loop_step)
           break unless evaluate(@comprehension.loop_condition).value

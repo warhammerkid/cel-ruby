@@ -15,16 +15,7 @@ module Cel
       return nil if matches.nil?
 
       # Calculate arg types for lookup
-      arg_types = args.map do |arg|
-        case arg
-        when Cel::Type then :type
-        when Cel::List then :list
-        when Cel::Map then :map
-        when Cel::Literal then arg.type.to_str.to_sym
-        when Cel::Types::Message then :message
-        else raise "Could not determine arg type: #{arg.inspect}"
-        end
-      end
+      arg_types = args.map { |arg| arg.type.to_sym }
 
       # Return match
       matches.find do |binding|
@@ -65,5 +56,33 @@ module Cel
       @bindings[binding.name][binding.is_receiver] ||= []
       @bindings[binding.name][binding.is_receiver] << binding
     end
+  end
+
+  # Legacy Function class for bindings
+  class Function
+    attr_reader :types, :type
+
+    def initialize(*types, return_type: nil, &func)
+      unless func.nil?
+        types = Array.new(func.arity) { TYPES[:any] } if types.empty?
+        raise(Error, "number of arg types does not match number of yielded args") unless types.size == func.arity
+      end
+      @types = types.map { |typ| typ.is_a?(Type) ? typ : TYPES[typ] }
+      @type = if return_type.nil?
+        TYPES[:any]
+      else
+        return_type.is_a?(Type) ? return_type : TYPES[return_type]
+      end
+      @func = func
+    end
+
+    def call(*args)
+      Cel.to_value(@func.call(*args.map(&:to_ruby)))
+    end
+  end
+
+  mod = self
+  mod.define_singleton_method(:Function) do |*args, **kwargs, &blk|
+    mod::Function.new(*args, **kwargs, &blk)
   end
 end

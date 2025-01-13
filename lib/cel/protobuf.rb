@@ -9,7 +9,7 @@ begin
   require "google/protobuf/any_pb"
   require "google/protobuf/well_known_types"
 
-  require "cel/types/message"
+  require "cel/values/message"
 
   module Cel
     module Protobuf
@@ -80,7 +80,7 @@ begin
         when Google::Protobuf::EnumDescriptor
           Cel::Number.new(:int, Cel::Protobuf.enum_lookup_name(type, value))
         when Google::Protobuf::Descriptor
-          return Cel::Types::Message.new(value) if value
+          return Cel::Message.new(value) if value
 
           # If accessing a message field that isn't set, if it's a wrapper type
           # return null. Otherwise return a new message with the correct type.
@@ -88,7 +88,7 @@ begin
              type == Cel::String::STRING_DESCRIPTOR || type == Cel::Bytes::BYTES_DESCRIPTOR
             Cel::Null.new
           else
-            Cel::Types::Message.new(type.msgclass.new)
+            Cel::Message.new(type.msgclass.new)
           end
         when Cel::Protobuf::RepeatedType
           list_type = type.type_descriptor || type.type
@@ -103,7 +103,7 @@ begin
 
       # TODO: This probably needs to be completely re-worked
       def self.lookup_enum(identifier)
-        EnumLookup.new(identifier.id)
+        EnumLookup.new(identifier)
       end
 
       # Magical object that eventually returns the enum value if enough selects
@@ -126,22 +126,37 @@ begin
       end
     end
 
-    class Literal
-      class << self
-        alias_method :to_cel_type_without_proto, :to_cel_type
-        def to_cel_type(val)
-          case val
-          when Google::Protobuf::MessageExts
-            Cel::Types::Message.new(val)
-          when Cel::Types::Message
-            val
-          when Google::Protobuf::RepeatedField
-            List.new(val.to_a)
-          when Google::Protobuf::Map
-            Map.new(val.to_h)
-          else
-            to_cel_type_without_proto(val)
-          end
+    class MessageType < Type
+      attr_reader :descriptor
+
+      def self.[](descriptor)
+        case descriptor
+        when Google::Protobuf::Descriptor then new(descriptor)
+        when Google::Protobuf::MessageExts then new(descriptor.class.descriptor)
+        else raise "Message type must be created with a descriptor"
+        end
+      end
+
+      def initialize(descriptor)
+        super(:message)
+        @descriptor = descriptor
+      end
+    end
+
+    class << self
+      alias_method :to_value_without_proto, :to_value
+
+      # Converts the given ruby value to a Cel value
+      def to_value(ruby_value)
+        case ruby_value
+        when Google::Protobuf::MessageExts
+          Message.new(ruby_value)
+        when Google::Protobuf::RepeatedField
+          List.new(ruby_value.to_a)
+        when Google::Protobuf::Map
+          Map.new(ruby_value.to_h)
+        else
+          to_value_without_proto(ruby_value)
         end
       end
     end
@@ -343,19 +358,17 @@ begin
       end
     end
 
-    module Types
-      class Message
-        def cast_to_proto(type)
-          if type == @message.class.descriptor
-            @message
-          elsif type == Protobuf::ANY_DESCRIPTOR
-            Google::Protobuf::Any.pack(message)
-          elsif type == Protobuf::VALUE_DESCRIPTOR
-            # Convert it to JSON and then decode that JSON
-            Google::Protobuf::Value.decode_json(@message.to_json)
-          else
-            raise EvaluateError, "Cannot convert #{self} to #{type.inspect}"
-          end
+    class Message
+      def cast_to_proto(type)
+        if type == @message.class.descriptor
+          @message
+        elsif type == Protobuf::ANY_DESCRIPTOR
+          Google::Protobuf::Any.pack(message)
+        elsif type == Protobuf::VALUE_DESCRIPTOR
+          # Convert it to JSON and then decode that JSON
+          Google::Protobuf::Value.decode_json(@message.to_json)
+        else
+          raise EvaluateError, "Cannot convert #{self} to #{type.inspect}"
         end
       end
     end

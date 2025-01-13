@@ -57,8 +57,7 @@ class ConformanceTest < Minitest::Test
             return_value = env.evaluate(ast, bindings)
             assert(test.result_matcher != :eval_error, "Evaluation should have failed: #{test.eval_error}")
 
-            expr_value = convert_to_conformance_value(return_value)
-            assert_equal test.value, expr_value
+            assert_equal convert_conformance_value(test.value), return_value
           rescue StandardError => e
             raise e unless test.result_matcher == :eval_error
           end
@@ -88,49 +87,20 @@ class ConformanceTest < Minitest::Test
     when :bytes_value
       Cel::Bytes.new(value_proto.bytes_value.b)
     when :object_value
-      Cel::Types::Message.new(value_proto.object_value)
+      Cel::Message.new(value_proto.object_value)
     when :list_value
       Cel::List.new(value_proto.list_value.values.map { |v| convert_conformance_value(v) })
     when :map_value
       entries = value_proto.map_value.entries.to_a
       Cel::Map.new(entries.to_h { |e| [convert_conformance_value(e.key), convert_conformance_value(e.value)] })
+    when :type_value
+      case value_proto.type_value
+      when "google.protobuf.Timestamp" then Cel::TYPES[:timestamp]
+      when "google.protobuf.Duration" then Cel::TYPES[:duration]
+      else Cel::TYPES.fetch(value_proto.type_value.to_sym)
+      end
     else
       raise "Cannot convert: #{value_proto.inspect}"
-    end
-  end
-
-  # Converts Cel::Literal to Cel::Expr::Value proto
-  #
-  def convert_to_conformance_value(value)
-    case value
-    when Cel::Null
-      Cel::Expr::Value.new(null_value: :NULL_VALUE)
-    when Cel::Bool
-      Cel::Expr::Value.new(bool_value: value.value)
-    when Cel::Number
-      case value.type
-      when Cel::TYPES[:int] then Cel::Expr::Value.new(int64_value: value.value)
-      when Cel::TYPES[:uint] then Cel::Expr::Value.new(uint64_value: value.value)
-      when Cel::TYPES[:double] then Cel::Expr::Value.new(double_value: value.value.to_f)
-      end
-    when Cel::String
-      Cel::Expr::Value.new(string_value: value.value)
-    when Cel::Bytes
-      Cel::Expr::Value.new(bytes_value: value.value.b)
-    when Cel::Map
-      entries = value.value.map do |k, v|
-        { key: convert_to_conformance_value(k), value: convert_to_conformance_value(v) }
-      end
-      Cel::Expr::Value.new(map_value: { entries: entries })
-    when Cel::List
-      list_values = value.value.map { |v| convert_to_conformance_value(v) }
-      Cel::Expr::Value.new(list_value: { values: list_values })
-    when Cel::Types::Message
-      Cel::Expr::Value.new(object_value: Google::Protobuf::Any.pack(value.message))
-    when Cel::Type
-      Cel::Expr::Value.new(type_value: value.to_s)
-    else
-      raise "Unexpected type: #{value.inspect} (#{value.class.name})"
     end
   end
 end

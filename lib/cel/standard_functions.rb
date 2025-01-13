@@ -44,7 +44,7 @@ module Cel
 
       cel_func { global_function("!=", %i[any any], :bool) }
       def not_equal(a, b)
-        Cel::Bool.new(!is_equal(a, b).value)
+        !is_equal(a, b)
       end
 
       #
@@ -77,18 +77,6 @@ module Cel
       end
 
       #
-      # Collection functions
-      #
-
-      cel_func do
-        global_function("in", %i[any list], :bool)
-        global_function("in", %i[any map], :bool)
-      end
-      def in(element, collection)
-        Cel::Bool.new(collection.include?(element))
-      end
-
-      #
       # Type conversion functions
       #
 
@@ -96,9 +84,7 @@ module Cel
         global_function("type", %i[any], :type)
       end
       def type(a)
-        return a.type if a.respond_to?(:type)
-
-        a.class
+        a.type
       end
 
       cel_func do
