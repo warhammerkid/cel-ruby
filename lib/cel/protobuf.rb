@@ -9,8 +9,6 @@ begin
   require "google/protobuf/any_pb"
   require "google/protobuf/well_known_types"
 
-  require "cel/values/message"
-
   module Cel
     module Protobuf
       pool = Google::Protobuf::DescriptorPool.generated_pool
@@ -142,6 +140,7 @@ begin
         @descriptor = descriptor
       end
     end
+    TYPES[:message] = Type.new(:message)
 
     class << self
       alias_method :to_value_without_proto, :to_value
@@ -357,22 +356,9 @@ begin
         end
       end
     end
-
-    class Message
-      def cast_to_proto(type)
-        if type == @message.class.descriptor
-          @message
-        elsif type == Protobuf::ANY_DESCRIPTOR
-          Google::Protobuf::Any.pack(message)
-        elsif type == Protobuf::VALUE_DESCRIPTOR
-          # Convert it to JSON and then decode that JSON
-          Google::Protobuf::Value.decode_json(@message.to_json)
-        else
-          raise EvaluateError, "Cannot convert #{self} to #{type.inspect}"
-        end
-      end
-    end
   end
+
+  require "cel/values/message"
 rescue LoadError
   # Protobuf support is optional
 end

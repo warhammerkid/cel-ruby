@@ -14,10 +14,8 @@ module Cel
       matches = name_matches[!call_ast.target.nil?]
       return nil if matches.nil?
 
-      # Calculate arg types for lookup
-      arg_types = args.map { |arg| arg.type.to_sym }
-
       # Return match
+      arg_types = args.map(&:type)
       matches.find do |binding|
         next unless binding.arg_types.size == arg_types.size
 
@@ -42,8 +40,8 @@ module Cel
 
         binding = FunctionBindings::BindingDef.new(
           name.to_s,
-          func.types.map { |t| t.to_str.to_sym },
-          func.type.to_str.to_sym,
+          func.types,
+          func.type,
           false,
           func.method(:call)
         )

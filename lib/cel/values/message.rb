@@ -104,6 +104,19 @@ module Cel
       @message
     end
 
+    def cast_to_proto(type)
+      if type == @message.class.descriptor
+        @message
+      elsif type == Protobuf::ANY_DESCRIPTOR
+        Google::Protobuf::Any.pack(message)
+      elsif type == Protobuf::VALUE_DESCRIPTOR
+        # Convert it to JSON and then decode that JSON
+        Google::Protobuf::Value.decode_json(@message.to_json)
+      else
+        raise EvaluateError, "Cannot convert #{self} to #{type.inspect}"
+      end
+    end
+
     # For well known types, returns the proper Cel type instead. Returns nil
     # if there is no well known type for the given message.
     def self.unwrap_well_known(message)
