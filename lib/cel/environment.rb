@@ -44,29 +44,18 @@ module Cel
       check(ast)
     end
 
-    # Creates a runner for the given AST
+    # Creates a program for the given AST. The returned program is stateless and
+    # cacheable.
     def program(ast)
       ast = @parser.parse(ast) if ast.is_a?(::String)
-      Runner.new(self, ast)
+      Program.plan(self, ast)
     end
 
     # Parses, checks, and evaluates the given expression with the given bindings
     def evaluate(expr, bindings = nil)
       expr = @parser.parse(expr) if expr.is_a?(::String)
       check(expr)
-      Runner.new(self, expr).evaluate(bindings)
-    end
-  end
-
-  class Runner
-    def initialize(environment, ast)
-      @environment = environment
-      @ast = ast
-    end
-
-    def evaluate(bindings = nil)
-      context = Context.new(@environment.declarations, bindings, @environment.function_registry)
-      Program.new(context, @environment.container).evaluate(@ast)
+      Program.plan(self, expr).evaluate(bindings)
     end
   end
 end

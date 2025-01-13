@@ -42,7 +42,7 @@ class ConformanceTest < Minitest::Test
           env = Cel::Environment.new(declarations, container)
 
           # Parse
-          ast = Cel::Parser.new.parse(test.expr)
+          ast = env.parse(test.expr)
 
           # Check
           env.check(ast) unless test.disable_check

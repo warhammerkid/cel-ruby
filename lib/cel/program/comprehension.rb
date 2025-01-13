@@ -2,7 +2,7 @@
 
 module Cel
   class Program
-    class Comprehension < Program
+    class Comprehension < Interpreter
       def initialize(context, container, comprehension)
         super(context, container)
         @comprehension = comprehension
