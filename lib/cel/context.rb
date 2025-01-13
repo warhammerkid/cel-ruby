@@ -12,20 +12,19 @@ module Cel
       return unless @bindings
 
       @bindings.each do |k, v|
-        @bindings[k] = to_cel_type(v)
+        @bindings[k] = Cel.to_value(v)
       end
     end
 
     def lookup(identifier)
       # Check bindings first
       if @bindings
-        id = identifier.id
-        val = @bindings.dig(*id.split(".").map(&:to_sym))
+        val = @bindings.dig(*identifier.split(".").map(&:to_sym))
         return val if val
       end
 
       # If protobufs are enabled, check protobuf environment for an enum
-      return Cel::Protobuf.lookup_enum(identifier) if defined?(Cel::Protobuf) && identifier.id == "google"
+      return Cel::Protobuf.lookup_enum(identifier) if defined?(Cel::Protobuf) && identifier == "google"
 
       raise EvaluateError, "no value in context for #{identifier}"
     end
@@ -36,12 +35,6 @@ module Cel
 
     def merge(bindings)
       Context.new(@declarations, @bindings ? @bindings.merge(bindings) : bindings, @function_registry)
-    end
-
-    private
-
-    def to_cel_type(v)
-      Literal.to_cel_type(v)
     end
   end
 end

@@ -45,30 +45,26 @@ module Cel
     end
 
     def evaluate_identifier(ast)
-      if Cel::PRIMITIVE_TYPES.include?(ast.name.to_sym)
-        type_sym = ast.name.to_sym
-        Cel::TYPES.fetch(type_sym) { Type.new(type_sym) } # Fallback for collection types
+      name_sym = ast.name.to_sym
+      if Cel::PRIMITIVE_TYPES.include?(name_sym)
+        Cel::TYPES.fetch(name_sym)
       else
-        @context.lookup(Cel::Identifier.new(ast.name))
+        @context.lookup(ast.name)
       end
     end
 
     def evaluate_select(ast)
       operand = evaluate(ast.operand)
       if ast.test_only
-        case operand
-        when Cel::Map
-          Cel::Bool.new(operand.respond_to?(ast.field))
-        when Cel::Types::Message
-          operand.field_set?(ast.field)
-        else
-          raise EvaluateError, "select is not supported on: #{operand}"
-        end
+        raise EvaluateError, "select is not supported on: #{operand}" unless operand.respond_to?(:field_set?)
+
+        operand.field_set?(ast.field)
+
       else
         case operand
         when Cel::Map
-          operand.public_send(ast.field)
-        when Cel::Types::Message
+          operand[Cel::String.new(ast.field)]
+        when Cel::Message
           operand[ast.field]
         when Protobuf::EnumLookup
           operand.select(ast.field)
@@ -97,7 +93,7 @@ module Cel
       if ast.message_name == ""
         hash = ast.entries.to_h { |entry| [evaluate(entry.key), evaluate(entry.value)] }
         Cel::Map.new(hash)
-      elsif !defined?(Cel::Types::Message)
+      elsif !defined?(Cel::Message)
         warn "DEPRECATED: Use of named structs without protobufs is deprecated"
         hash = ast.entries.to_h { |entry| [Cel::String.new(entry.key), evaluate(entry.value)] }
         Cel::Map.new(hash)
@@ -110,7 +106,7 @@ module Cel
 
         # Build the protobuf message
         hash = ast.entries.to_h { |entry| [entry.key, evaluate(entry.value)] }
-        Cel::Types::Message.from_cel_fields(pool.lookup(qualified_name), hash)
+        Cel::Message.from_cel_fields(pool.lookup(qualified_name), hash)
       end
     end
 

@@ -30,8 +30,6 @@ module Cel
     end
 
     class TypeHelper
-      VALID_TYPES = %i[int uint double bool string bytes list map timestamp duration type message any].freeze
-
       attr_reader :bindings
 
       def initialize
@@ -49,10 +47,14 @@ module Cel
       private
 
       def add_binding(name, arg_types, return_type, is_receiver)
-        arg_types.each { |a| raise "Invalid argument type: #{a}" unless VALID_TYPES.include?(a) }
-        raise "Invalid return type: #{return_type}" unless VALID_TYPES.include?(return_type)
+        arg_types = arg_types.map { |a| lookup_type(a) }
+        return_type = lookup_type(return_type)
 
         @bindings << BindingDef.new(name, arg_types, return_type, is_receiver)
+      end
+
+      def lookup_type(type_or_sym)
+        type_or_sym.is_a?(Type) ? type_or_sym : TYPES.fetch(type_or_sym)
       end
     end
 

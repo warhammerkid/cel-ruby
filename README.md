@@ -71,12 +71,12 @@ puts return_value #=> true
 
 ```ruby
 env = Cel::Environment.new(
-  first_name: :string, # shortcut for Cel::Types[:string]
-  middle_names: Cel::Types[:list, :string], # list of strings
+  first_name: :string, # shortcut for Cel::TYPES[:string]
+  middle_names: Cel::ListType[:string], # list of strings
   last_name: :string
 )
 
-# you can use Cel::Types to access any type of primitive type, i.e. Cel::Types[:bytes]
+# you can use Cel::TYPES to access any type of primitive type, i.e. Cel::TYPES[:bytes]
 ```
 
 ### protobuf
