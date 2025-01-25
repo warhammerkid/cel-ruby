@@ -2,6 +2,8 @@
 
 require "test_helper"
 
+require "cel/extra/encoders"
+
 require "cel/expr/conformance/test/simple_pb"
 require "cel/expr/conformance/proto2/test_all_types_pb"
 require "cel/expr/conformance/proto3/test_all_types_pb"
@@ -40,6 +42,7 @@ class ConformanceTest < Minitest::Test
           declarations = nil
           container = Cel::Container.new(test.container)
           env = Cel::Environment.new(declarations, container)
+          env.extend_functions(Cel::Extra::Encoders)
 
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
