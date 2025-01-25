@@ -6,35 +6,30 @@ module Cel
 
     def initialize(declarations, bindings, function_registry = nil)
       @declarations = declarations
-      @bindings = bindings.dup
+      @bindings = (bindings || {}).to_h { |k, v| [k.to_s, Cel.to_value(v)] }
       @function_registry = function_registry
-
-      return unless @bindings
-
-      @bindings.each do |k, v|
-        @bindings[k] = Cel.to_value(v)
-      end
     end
 
     def lookup(identifier)
       # Check bindings first
-      if @bindings
-        val = @bindings.dig(*identifier.split(".").map(&:to_sym))
-        return val if val
-      end
+      return @bindings[identifier] if @bindings.key?(identifier)
 
       # If protobufs are enabled, check protobuf environment for an enum
-      return Cel::Protobuf.lookup_enum(identifier) if defined?(Cel::Protobuf) && identifier == "google"
+      return Cel::Protobuf.lookup_enum(identifier) if defined?(Cel::Protobuf)
 
-      raise EvaluateError, "no value in context for #{identifier}"
+      nil
     end
 
-    def lookup_function(call_ast, args)
-      @function_registry.lookup_function(call_ast, args)
+    def function_defined?(name)
+      @function_registry.function_defined?(name)
+    end
+
+    def lookup_function(name, has_target, args)
+      @function_registry.lookup_function(name, has_target, args)
     end
 
     def merge(bindings)
-      Context.new(@declarations, @bindings ? @bindings.merge(bindings) : bindings, @function_registry)
+      Context.new(@declarations, @bindings.merge(bindings), @function_registry)
     end
   end
 end

@@ -7,11 +7,15 @@ module Cel
       convert_legacy_declarations(legacy_declarations)
     end
 
-    def lookup_function(call_ast, args)
-      name_matches = @bindings[call_ast.function]
+    def function_defined?(name)
+      @bindings.key?(name)
+    end
+
+    def lookup_function(name, has_target, args)
+      name_matches = @bindings[name]
       return nil if name_matches.nil?
 
-      matches = name_matches[!call_ast.target.nil?]
+      matches = name_matches[has_target]
       return nil if matches.nil?
 
       # Return match

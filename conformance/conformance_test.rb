@@ -2,6 +2,8 @@
 
 require "test_helper"
 
+require "cel/extra/encoders"
+
 require "cel/expr/conformance/test/simple_pb"
 require "cel/expr/conformance/proto2/test_all_types_pb"
 require "cel/expr/conformance/proto3/test_all_types_pb"
@@ -40,6 +42,7 @@ class ConformanceTest < Minitest::Test
           declarations = nil
           container = Cel::Container.new(test.container)
           env = Cel::Environment.new(declarations, container)
+          env.extend_functions(Cel::Extra::Encoders)
 
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
@@ -93,6 +96,9 @@ class ConformanceTest < Minitest::Test
     when :map_value
       entries = value_proto.map_value.entries.to_a
       Cel::Map.new(entries.to_h { |e| [convert_conformance_value(e.key), convert_conformance_value(e.value)] })
+    when :enum_value
+      # We don't have an enum type, so just convert it to a number
+      Cel::Number.new(:int, value_proto.enum_value.value)
     when :type_value
       case value_proto.type_value
       when "google.protobuf.Timestamp" then Cel::TYPES[:timestamp]
