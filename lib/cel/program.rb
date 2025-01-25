@@ -46,31 +46,44 @@ module Cel
 
     def evaluate_identifier(ast)
       name_sym = ast.name.to_sym
-      if Cel::PRIMITIVE_TYPES.include?(name_sym)
-        Cel::TYPES.fetch(name_sym)
-      else
-        @context.lookup(ast.name)
+      return Cel::TYPES.fetch(name_sym) if Cel::PRIMITIVE_TYPES.include?(name_sym)
+
+      @container.resolve(ast.name).each do |candidate_name|
+        value = @context.lookup(candidate_name)
+        return value unless value.nil?
       end
+
+      raise EvaluateError, "no value in context for #{ast.name}"
     end
 
     def evaluate_select(ast)
-      operand = evaluate(ast.operand)
+      # Handle test_only (has macro)
       if ast.test_only
+        operand = evaluate(ast.operand)
         raise EvaluateError, "select is not supported on: #{operand}" unless operand.respond_to?(:field_set?)
 
-        operand.field_set?(ast.field)
+        return operand.field_set?(ast.field)
+      end
 
-      else
-        case operand
-        when Cel::Map
-          operand[Cel::String.new(ast.field)]
-        when Cel::Message
-          operand[ast.field]
-        when Protobuf::EnumLookup
-          operand.select(ast.field)
-        else
-          raise EvaluateError, "select is not supported on: #{operand}"
+      # Is this a qualified ident?
+      if (name = get_qualified_name(ast))
+        @container.resolve(name).each do |candidate_name|
+          value = @context.lookup(candidate_name)
+          return value unless value.nil?
         end
+      end
+
+      # Treat it as a normal select
+      operand = evaluate(ast.operand)
+      case operand
+      when Cel::Map
+        operand[Cel::String.new(ast.field)]
+      when Cel::Message
+        operand[ast.field]
+      when Protobuf::EnumLookup
+        operand.select(ast.field)
+      else
+        raise EvaluateError, "select is not supported on: #{operand}"
       end
     end
 
@@ -112,6 +125,19 @@ module Cel
 
     def evaluate_comprehension(ast)
       Comprehension.new(@context, @container, ast).call
+    end
+
+    # Returns a string concatenating all chained ident/selects together with
+    # period separators. Returns nil if the given ast node isn't a chain of
+    # only idents and selects.
+    def get_qualified_name(ast)
+      case ast
+      when AST::Identifier
+        ast.name
+      when AST::Select
+        operand = get_qualified_name(ast.operand)
+        operand ? "#{operand}.#{ast.field}" : nil
+      end
     end
   end
 end

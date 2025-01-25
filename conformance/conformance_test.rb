@@ -93,6 +93,9 @@ class ConformanceTest < Minitest::Test
     when :map_value
       entries = value_proto.map_value.entries.to_a
       Cel::Map.new(entries.to_h { |e| [convert_conformance_value(e.key), convert_conformance_value(e.value)] })
+    when :enum_value
+      # We don't have an enum type, so just convert it to a number
+      Cel::Number.new(:int, value_proto.enum_value.value)
     when :type_value
       case value_proto.type_value
       when "google.protobuf.Timestamp" then Cel::TYPES[:timestamp]

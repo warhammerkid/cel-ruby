@@ -99,28 +99,17 @@ begin
         end
       end
 
-      # TODO: This probably needs to be completely re-worked
       def self.lookup_enum(identifier)
-        EnumLookup.new(identifier)
-      end
+        last_period_index = identifier.rindex(".")
+        return nil if last_period_index.nil?
 
-      # Magical object that eventually returns the enum value if enough selects
-      # are chained to it
-      class EnumLookup
-        def initialize(name)
-          @name = name
-        end
+        descriptor_name = identifier[0...last_period_index]
+        enum = Google::Protobuf::DescriptorPool.generated_pool.lookup(descriptor_name)
+        return nil unless enum.is_a?(Google::Protobuf::EnumDescriptor)
 
-        def select(field)
-          enum = Google::Protobuf::DescriptorPool.generated_pool.lookup(@name)
-          if enum.is_a?(Google::Protobuf::EnumDescriptor)
-            # Return the enum value
-            Cel::Number.new(:int, Cel::Protobuf.enum_lookup_name(enum, field.to_sym))
-          else
-            # Keep chaining in the hopes it's a valid enum eventually
-            EnumLookup.new("#{@name}.#{field}")
-          end
-        end
+        enum_name = identifier[(last_period_index + 1)..]
+        enum_value = Cel::Protobuf.enum_lookup_name(enum, enum_name.to_sym)
+        enum_value ? Cel::Number.new(:int, enum_value) : nil
       end
     end
 

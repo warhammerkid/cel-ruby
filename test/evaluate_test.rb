@@ -128,6 +128,13 @@ class CelEvaluateTest < Minitest::Test
     assert_value true, environment(decs, container).evaluate("s == TestStruct{a: 3, b: 2}", binds)
   end
 
+  def test_enum_proto
+    assert_value 0, environment.evaluate("google.protobuf.NullValue.NULL_VALUE")
+
+    container = Cel::Container.new("google.protobuf")
+    assert_value 0, environment(nil, container).evaluate("NullValue.NULL_VALUE")
+  end
+
   def test_var_expression
     assert_raises(Cel::EvaluateError) { environment.evaluate("a == 2") }
     assert_value false, environment.evaluate("a == 2", { a: Cel::Number.new(:int, 1) })
@@ -262,6 +269,7 @@ class CelEvaluateTest < Minitest::Test
     assert_value 1, environment.evaluate("a[0]", { a: [1, 2, 3] })
     assert_value [1, 2, 3], environment.evaluate("a", { a: [1, 2, 3] })
     assert_value 2, environment.evaluate("a.b", { a: { "b" => 2 } })
+    assert_value 3, environment.evaluate("a.b.c.d", { "a.b.c.d" => 3 })
     assert_value({ "b" => 2 }, environment.evaluate("a", { a: { "b" => 2 } }))
 
     assert_raises(Cel::BindingError) { environment.evaluate("a", { a: Object.new }) }
