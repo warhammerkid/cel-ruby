@@ -20,8 +20,12 @@ module Cel
       nil
     end
 
-    def lookup_function(call_ast, args)
-      @function_registry.lookup_function(call_ast, args)
+    def function_defined?(name)
+      @function_registry.function_defined?(name)
+    end
+
+    def lookup_function(name, has_target, args)
+      @function_registry.lookup_function(name, has_target, args)
     end
 
     def merge(bindings)

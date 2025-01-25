@@ -246,7 +246,7 @@ class CelEvaluateTest < Minitest::Test
       class << self
         extend Cel::FunctionBindings
 
-        cel_func { global_function("foo_too", %i[int int], :int) }
+        cel_func { global_function("bah.too.foo", %i[int int], :int) }
         def foo(a, b)
           Cel::Number.new(:int, a.value + b.value)
         end
@@ -257,7 +257,7 @@ class CelEvaluateTest < Minitest::Test
     env.extend_functions(my_singleton_module)
 
     assert_value(4, env.evaluate("foo(2, 2)"))
-    assert_value(4, env.evaluate("foo_too(2, 2)"))
+    assert_value(4, env.evaluate("bah.too.foo(2, 2)"))
   end
 
   def test_bindings

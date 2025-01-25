@@ -88,14 +88,28 @@ module Cel
     end
 
     def evaluate_call(ast)
-      args = ast.args.map { |arg| evaluate(arg) }
-      args.unshift(evaluate(ast.target)) if ast.target
+      # Does it have a qualified name?]
+      function_name = ast.function
+      target = ast.target
+      if (name = get_qualified_name(target))
+        @container.resolve("#{name}.#{function_name}").each do |candidate_name|
+          next unless @context.function_defined?(candidate_name)
 
-      if (binding = @context.lookup_function(ast, args))
-        binding.call(*args)
-      else
-        raise EvaluateError, "unhandled call: #{ast.inspect}"
+          # Found a matching qualified name
+          function_name = candidate_name
+          target = nil
+          break
+        end
       end
+
+      # Lookup actual function binding
+      args = ast.args.map { |arg| evaluate(arg) }
+      args.unshift(evaluate(target)) if target
+      if (binding = @context.lookup_function(function_name, !target.nil?, args))
+        return binding.call(*args)
+      end
+
+      raise EvaluateError, "unhandled call: #{ast.inspect}"
     end
 
     def evaluate_create_list(ast)
