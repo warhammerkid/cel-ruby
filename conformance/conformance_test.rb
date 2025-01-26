@@ -3,6 +3,7 @@
 require "test_helper"
 
 require "cel/extra/encoders"
+require "cel/extra/strings"
 
 require "cel/expr/conformance/test/simple_pb"
 require "cel/expr/conformance/proto2/test_all_types_pb"
@@ -33,7 +34,7 @@ class ConformanceTest < Minitest::Test
     next if File.basename(path) == "proto2_ext.textproto"
 
     simple_test_file = parser.parse(File.read(path))
-    simple_test_file.section.each do |section|
+    simple_test_file.section.each do |section| # rubocop:disable Metrics/BlockLength
       section.test.each do |test|
         # Name method using test name - disambiguate the few duplicates
         method_name = "test_#{simple_test_file.name}_#{section.name}_#{test.name}"
@@ -48,7 +49,7 @@ class ConformanceTest < Minitest::Test
           declarations = nil
           container = Cel::Container.new(test.container)
           env = Cel::Environment.new(declarations, container)
-          env.extend_functions(Cel::Extra::Encoders)
+          extend_env(env)
 
           # Parse
           ast = Cel::Parser.new.parse(test.expr)
@@ -66,6 +67,9 @@ class ConformanceTest < Minitest::Test
             return_value = env.evaluate(ast, bindings)
             assert(test.result_matcher != :eval_error, "Evaluation should have failed: #{test.eval_error}")
 
+            # Compare with true if no matcher is set
+            test.value = Cel::Expr::Value.new(bool_value: true) if test.result_matcher.nil?
+
             assert_equal convert_conformance_value(test.value), return_value
           rescue StandardError => e
             raise e unless test.result_matcher == :eval_error
@@ -76,6 +80,11 @@ class ConformanceTest < Minitest::Test
   end
 
   private
+
+  def extend_env(env)
+    env.extend_functions(Cel::Extra::Encoders)
+    env.extend_functions(Cel::Extra::Strings)
+  end
 
   # Converts Cel::Expr::Value to internal Ruby Cel value
   #
