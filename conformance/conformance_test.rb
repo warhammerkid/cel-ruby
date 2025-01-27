@@ -8,6 +8,8 @@ require "cel/expr/conformance/test/simple_pb"
 require "cel/expr/conformance/proto2/test_all_types_pb"
 require "cel/expr/conformance/proto3/test_all_types_pb"
 
+require_relative "text_format"
+
 class ConformanceTest < Minitest::Test
   PRIMITIVE_TYPE_MAP = {
     BOOL: :bool,
@@ -24,9 +26,13 @@ class ConformanceTest < Minitest::Test
   end
 
   # Dyamically define test methods for all conformance tests
-  Dir[File.expand_path("testdata/*.json", __dir__)].each do |path| # rubocop:disable Metrics/BlockLength
-    json = File.binread(path)
-    simple_test_file = Cel::Expr::Conformance::Test::SimpleTestFile.decode_json(json)
+  pool = Google::Protobuf::DescriptorPool.generated_pool
+  parser = ProtoTextFormat.new(pool.lookup("cel.expr.conformance.test.SimpleTestFile"))
+  Dir[File.expand_path("testdata/*.textproto", __dir__)].each do |path| # rubocop:disable Metrics/BlockLength
+    # Extension fields are currently not supported for parsing
+    next if File.basename(path) == "proto2_ext.textproto"
+
+    simple_test_file = parser.parse(File.read(path))
     simple_test_file.section.each do |section|
       section.test.each do |test|
         # Name method using test name - disambiguate the few duplicates

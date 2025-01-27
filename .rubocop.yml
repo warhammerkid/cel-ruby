@@ -14,6 +14,7 @@ AllCops:
     - Gemfile
     - cel.gemspec
   Exclude:
+    - 'conformance/text_format.rb'
     - 'lib/cel/parser.rb'
     - 'test/*_pb.rb'
     - '.bundle/**/*'

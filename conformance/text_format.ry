@@ -1,0 +1,282 @@
+class ProtoTextFormat
+
+rule
+
+  target: message { result = @root }
+
+  message: fields { result = pop_message }
+         | { result = pop_message }
+
+
+  fields: fields field_with_sep
+        | field_with_sep
+  field_with_sep: field ";"
+                | field ","
+                | field
+  field: scalar_field
+       | message_field
+  scalar_field: field_name ":" scalar_value { set_scalar_field(val[0], val[2]) }
+              | field_name ":" scalar_list { @message[val[0]].replace(val[2]) }
+  message_field: message_field_name message_value { set_message_field(val[0], val[1]) }
+               | message_field_name message_list { @message[val[0]].concat(val[1]); pop_message }
+  message_field_name: field_name ":"
+                    | field_name
+
+
+  field_name: extension_name { raise "Extension fields are not supported" }
+            | any_name { result = start_field(val[0]) }
+            | IDENT { result = start_field(val[0]) }
+  extension_name: "[" type_name "]" { result = [val[1]] }
+  any_name : "[" type_name "/" type_name "]" { result = [val[1], val[3]] }
+  type_name: type_name "." IDENT { result = val.join }
+           | IDENT { result = val[0] }
+
+
+  scalar_list: "[" "]" { result = [] }
+             | "[" scalars "]" { result = val[1] }
+  scalars: scalars "," scalar_value { result = val[0] << val[2] }
+         | scalar_value { result = [val[0]] }
+  scalar_value: string { result = string_literal(val[0]) }
+              | float { result = float_literal(val[0]) }
+              | identifier { result = ident_literal(val[0]) }
+              | int { result = Integer(val[0]) }
+  string: string STRING { result = val.join }
+        | STRING
+  float: "-" FLOAT { result = val.join }
+       | FLOAT
+  identifier: "-" IDENT { result = val.join }
+            | IDENT
+  int: "-" INT { result = val.join }
+     | INT
+
+  message_list: "[" messages "]" { result = val[1] }
+  messages: messages "," message_value { result = val[0] << val[2] }
+          | message_value { result = [val[0]] }
+  message_value: "{" message "}" { result = val[1] }
+               | "<" message ">" { result = val[1] }
+
+
+---- header
+
+  require "strscan"
+
+---- inner
+  COMMENT_REGEX = /#[^\n]*/
+  WHITESPACE_REGEX = /[ \n\t\v\f\r]+/
+
+  IDENT_REGEX = /[_a-zA-Z][_a-zA-Z0-9]*/
+
+  HEXDIGIT  = "[0-9a-fA-F]"
+  DEC_LIT   = "(?:0|[1-9][0-9]*)"
+  EXP       = "(?:[eE][+-]?[0-9]+)"
+  FLOAT_LIT = "(?:" + [
+    "(?:\\.[0-9]+#{EXP}?)",
+    "(?:#{DEC_LIT}\\.[0-9]*#{EXP}?)",
+    "(?:#{DEC_LIT}#{EXP})",
+  ].join("|") + ")"
+  DEC_INT_REGEX = Regexp.new(DEC_LIT)
+  OCT_INT_REGEX = /0[0-7]+/
+  HEX_INT_REGEX = /0[xX]#{HEXDIGIT}+/
+  FLOAT_REGEX   = Regexp.union(/#{FLOAT_LIT}[fF]?/, /#{DEC_LIT}[fF]/)
+
+  BACKSLASH    = "\\\\" # Must be literally two backslashes for proper interpolation
+  ESC_CHAR_SEQ = "#{BACKSLASH}[abfnrtv?#{BACKSLASH}'\"]"
+  ESC_OCT_SEQ  = "#{BACKSLASH}[0-3][0-7]{2}"
+  ESC_HEX_SEQ  = "#{BACKSLASH}x#{HEXDIGIT}{2}"
+  ESC_UNI_SEQ  = "#{BACKSLASH}u#{HEXDIGIT}{4}|#{BACKSLASH}U000#{HEXDIGIT}{5}|#{BACKSLASH}U0010#{HEXDIGIT}{4}"
+  ESC_SEQ      = "#{ESC_CHAR_SEQ}|#{ESC_HEX_SEQ}|#{ESC_UNI_SEQ}|#{ESC_OCT_SEQ}"
+  STRING_REGEX = Regexp.union(
+    /'(?<str>(?:#{ESC_SEQ}|[^'\n\\])*)'/,
+    /"(?<str>(?:#{ESC_SEQ}|[^"\n\\])*)"/
+  )
+
+  def initialize(descriptor)
+    @descriptor = descriptor
+  end
+
+  def parse(str)
+    @root = @message = @descriptor.msgclass.new
+    @messages = [@root]
+    tokenize(str)
+    do_parse
+  end
+
+  def tokenize(str)
+    @q = []
+    scanner = StringScanner.new(str)
+    until scanner.eos?
+      if scanner.skip(WHITESPACE_REGEX) || scanner.skip(COMMENT_REGEX)
+        # Skip
+      elsif scanner.scan(FLOAT_REGEX)
+        @q << [:FLOAT, scanner.matched]
+      elsif scanner.scan(HEX_INT_REGEX) || scanner.scan(OCT_INT_REGEX) || scanner.scan(DEC_INT_REGEX)
+        @q << [:INT, scanner.matched]
+      elsif scanner.scan(STRING_REGEX)
+        @q << [:STRING, scanner[:str]]
+      elsif scanner.scan(IDENT_REGEX)
+        @q << [:IDENT, scanner.matched]
+      elsif scanner.scan(/[-.\/\[\]{}:;,<>]/)
+        s = scanner.matched
+        @q << [s, s]
+      else
+        raise "Could not parse: #{scanner.rest[0..50].inspect}"
+      end
+    end
+  end
+
+  def next_token
+    @q.shift
+  end
+
+  def start_field(field_name)
+    # Automatically start new item if current message is repeated
+    push_message(@message.new_item) if @message.is_a?(RepeatedMessageField)
+
+    if field_name.is_a?(Array)
+      descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(field_name.last)
+      push_message(descriptor.msgclass.new)
+    else
+      descriptor = @message.class.descriptor
+      field = descriptor.lookup(field_name)
+      if field.type == :message
+        if field.label == :repeated
+          push_message(RepeatedMessageField.new(field.subtype.msgclass))
+        else
+          push_message(field.subtype.msgclass.new)
+        end
+      end
+    end
+
+    field_name
+  end
+
+  def set_scalar_field(field_name, value)
+    field = @message.class.descriptor.lookup(field_name)
+    if field.type == :bytes
+      # By default strings are UTF-8, so we need to tell ruby it has a different
+      # encoding before setting, or the protobuf code will try to convert
+      field.set(@message, value.force_encoding("ASCII-8BIT"))
+    else
+      field.set(@message, value)
+    end
+  end
+
+  def set_message_field(field_name, value)
+    # Any object so wrap value
+    if field_name.is_a?(Array)
+      @message.type_url = field_name.join("/")
+      @message.value = value.to_proto
+      return
+    end
+
+    # Set field
+    if @message.is_a?(RepeatedMessageField)
+      pop_message # Pop the RepeatedMessageField to get back to the parent message
+
+      field = @message.class.descriptor.lookup(field_name)
+      case (field_value = field.get(@message))
+      when Google::Protobuf::RepeatedField then field_value.push(value)
+      when Google::Protobuf::Map then field_value[value.key] = value.value
+      else raise "Unexpected repeated field: #{field_value.inspect}"
+      end
+    else
+      field = @message.class.descriptor.lookup(field_name)
+      field.set(@message, value)
+    end
+  end
+
+  def push_message(message)
+    @message = message
+    @messages << @message
+  end
+
+  def pop_message
+    popped = @messages.pop
+    @message = @messages.last
+    popped
+  end
+
+  CHAR_SEQ_MAP = {
+    "\\a" => "\a",
+    "\\b" => "\b",
+    "\\f" => "\f",
+    "\\n" => "\n",
+    "\\r" => "\r",
+    "\\t" => "\t",
+    "\\v" => "\v",
+    "\\?" => "?",
+    "\\\\" => "\\",
+    "\\'" => "'",
+    "\\\"" => "\"",
+  }.freeze
+  ESC_SEQ_REGEX = /#{ESC_SEQ}/
+  def string_literal(str)
+    # Set to binary so we can put invalid characters in from the escapes
+    str.force_encoding("ASCII-8BIT")
+
+    # Parse and convert all escape sequences
+    str.gsub!(ESC_SEQ_REGEX) do |match|
+      case match[1]
+      when "0", "1", "2", "3"
+        # Octal sequence - ESC_OCT_SEQ
+        match[1..].to_i(8).chr
+      when "x"
+        # Hex sequence - ESC_BYTE_SEQ
+        match[2..].to_i(16).chr
+      when "u", "U"
+        # Unicode escape sequence - ESC_UNI_SEQ
+        [match[2..].to_i(16)].pack('U').b
+      else
+        # Char escape sequence - ESC_CHAR_SEQ
+        CHAR_SEQ_MAP.fetch(match)
+      end
+    end
+
+    # Assume valid UTF-8
+    str.force_encoding("UTF-8")
+  end
+
+  def float_literal(float_str)
+    Float(float_str.sub(/f$/, ""))
+  end
+
+  IDENT_LITERALS = {
+    "True" => true,
+    "true" => true,
+    "t" => true,
+    "False" => false,
+    "false" => false,
+    "f" => false,
+    "inf" => Float::INFINITY,
+    "Infinity" => Float::INFINITY,
+    "-inf" => -Float::INFINITY,
+    "-Infinity" => -Float::INFINITY,
+    "nan" => Float::NAN,
+  }.freeze
+  def ident_literal(ident)
+    if IDENT_LITERALS.key?(ident)
+      IDENT_LITERALS[ident]
+    else
+      # Assume it's an enum, which should be a Ruby symbol
+      ident.to_sym
+    end
+  end
+
+  class RepeatedMessageField
+    def initialize(msg_class)
+      @msg_class = msg_class
+      @values = []
+    end
+
+    def new_item
+      @msg_class.new
+    end
+
+    def <<(message)
+      @values << message
+    end
+
+    def to_a
+      @values
+    end
+  end
