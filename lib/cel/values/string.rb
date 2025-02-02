@@ -37,6 +37,7 @@ module Cel
 
     def cast_to_type(type)
       case type
+      when TYPES[:string] then self
       when TYPES[:bool]
         if TRUE_VALUE.include?(@value)
           Bool.new(true)

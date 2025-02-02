@@ -20,3 +20,18 @@ end
 require "tzinfo" # Required for timestamp timezone conversion tests
 
 require "cel"
+
+module CelAssertions
+  def assert_value(ruby_or_cel_value, cel_value)
+    if ruby_or_cel_value.is_a?(Cel::Value)
+      assert_equal(ruby_or_cel_value, cel_value)
+    else
+      assert_equal(ruby_or_cel_value, cel_value.to_ruby)
+    end
+  end
+
+  def assert_nil_value(cel_value)
+    assert_nil cel_value.to_ruby
+  end
+end
+Minitest::Test.include(CelAssertions)
