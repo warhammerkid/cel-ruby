@@ -78,7 +78,7 @@ module Cel
         format_args = args.zip(@clauses).map do |arg, (f, method)|
           method.arity == 1 ? method.call(arg) : method.call(f, arg)
         end
-        format(@parsed_format_string, *format_args)
+        format(@parsed_format_string, *format_args).force_encoding("UTF-8")
       end
 
       private
