@@ -80,8 +80,6 @@ module Cel
         operand[Cel::String.new(ast.field)]
       when Cel::Message
         operand[ast.field]
-      when Protobuf::EnumLookup
-        operand.select(ast.field)
       else
         raise EvaluateError, "select is not supported on: #{operand}"
       end
